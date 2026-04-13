@@ -21,4 +21,8 @@ class AppColors {
   static const Color success = Color(0xFF4CAF50);
   static const Color pending = Color(0xFFFFC107);
   static const Color error = Color(0xFFF44336);
+
+  // Màu Text
+  static const Color textPrimary = Color(0xFF2C3E50); // Chữ màu tối
+  static const Color textSecondary = Color(0xFF7F8C8D); // Chữ phụ/mờ
 }
