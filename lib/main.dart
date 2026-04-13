@@ -1,3 +1,4 @@
+//CODE TEST GIAO DIEN DANG NHAP
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -60,3 +61,44 @@ class GreenStepApp extends StatelessWidget {
     );
   }
 }
+
+//CODE TEST GIAO DIEN NHIEM VU
+// import 'package:flutter/material.dart';
+// import 'package:firebase_core/firebase_core.dart';
+// import 'core/constants/app_colors.dart';
+// import 'features/tasks/views/task_list_screen.dart';
+//
+// void main() async {
+//   WidgetsFlutterBinding.ensureInitialized();
+//
+//   await Firebase.initializeApp();
+//
+//   runApp(const GreenstepApp());
+// }
+//
+// class GreenstepApp extends StatelessWidget {
+//   const GreenstepApp({super.key});
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       title: 'Greenstep',
+//       debugShowCheckedModeBanner: false,
+//       //Cấu hình Light Theme đồng bộ với AppColors
+//       theme: ThemeData(
+//         useMaterial3: true,
+//         brightness: Brightness.light,
+//         scaffoldBackgroundColor: AppColors.backgroundLight,
+//         primaryColor: AppColors.primaryGreen,
+//         colorScheme: ColorScheme.fromSeed(
+//           seedColor: AppColors.primaryGreen,
+//           background: AppColors.backgroundLight,
+//           surface: AppColors.surfaceLight,
+//         ),
+//
+//         fontFamily: 'Roboto',
+//       ),
+//
+//       home: const TaskListScreen(),
+//     );
+//   }
+// }

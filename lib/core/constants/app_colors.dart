@@ -10,12 +10,12 @@ class AppColors {
   static const Color accentOrange = Color(0xFFFF9800); // Dùng cho các nút quan trọng hoặc cảnh báo
 
   // Màu nền & bề mặt (Light Mode)
-  static const Color backgroundLight = Color(0xFFF9FBF9);
+  static const Color backgroundLight = Color(0xFFD5F6D7);
   static const Color surfaceLight = Colors.white;
 
   // Màu nền & bề mặt (Dark Mode)
-  static const Color backgroundDark = Color(0xFF121212);
-  static const Color surfaceDark = Color(0xFF1E1E1E);
+  static const Color backgroundDark = Color(0xFF1A1C19);
+  static const Color surfaceDark = Color(0xFF222521);
 
   // Trạng thái nhiệm vụ
   static const Color success = Color(0xFF4CAF50);
