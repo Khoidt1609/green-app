@@ -25,4 +25,7 @@ class AppColors {
   // Màu Text
   static const Color textPrimary = Color(0xFF2C3E50); // Chữ màu tối
   static const Color textSecondary = Color(0xFF7F8C8D); // Chữ phụ/mờ
+
+  static const Color textPrimaryLight = Color(0xFFFFFFFF);  // Chữ màu sang
+  static const Color textSecondaryLight = Color(0xFFE0E0E0);  // Chữ phụ/mờ
 }
