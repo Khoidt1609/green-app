@@ -13,128 +13,155 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
-  String selectedCategory = 'Tất cả';
 
+//Search
+  final TextEditingController _searchController = TextEditingController();
+
+  // Giải phóng bộ nhớ khi không dùng nữa
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+  String selectedCategory = 'Tất cả';
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          // Lấy toàn bộ nhiệm vụ đang hoạt động từ Firebase
-          stream: FirebaseFirestore.instance
-              .collection('tasks')
-              .where('isActive', isEqualTo: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen));
-            }
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('GREENSTEP', style: AppTextStyles.caption.copyWith(color: AppColors.primaryDarkGreen, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  const SizedBox(height: 8),
+                  Text('Hành Động Xanh', style: AppTextStyles.heading1.copyWith(color: AppColors.textPrimary)),
+                ],
+              ),
+            ),
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return const Center(child: Text('Không có dữ liệu nhiệm vụ.'));
-            }
+            // Thanh tìm kiếm
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {});
+                },
+                decoration: InputDecoration(
+                  hintText: 'Tìm kiếm nhiệm vụ...',
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                  filled: true,
+                  fillColor: AppColors.surfaceLight,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
 
-            //Chuyển đổi dữ liệu sang List<TaskModel>
-            final allTasks = snapshot.data!.docs
-                .map((doc) => TaskModel.fromDocument(doc))
-                .toList();
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                // Lấy toàn bộ nhiệm vụ đang hoạt động từ Firebase
+                stream: FirebaseFirestore.instance
+                    .collection('tasks')
+                    .where('isActive', isEqualTo: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen));
+                  }
 
-            // Lấy danh sách Category
-            final Set<String> dbCategories = allTasks.map((t) => t.category).toSet();
-            final List<String> categories = dbCategories.toList()..sort();
-            categories.insert(0, 'Tất cả');
-            //Lọc nhiệm vụ
-            final filteredTasks = selectedCategory == 'Tất cả'
-                ? allTasks
-                : allTasks.where((t) => t.category == selectedCategory).toList();
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('Không có dữ liệu nhiệm vụ.'));
+                  }
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  //Chuyển đổi dữ liệu sang List<TaskModel>
+                  final allTasks = snapshot.data!.docs
+                      .map((doc) => TaskModel.fromDocument(doc))
+                      .toList();
+
+                  // Lấy danh sách Category
+                  final Set<String> dbCategories = allTasks.map((t) => t.category).toSet();
+                  final List<String> categories = dbCategories.toList()..sort();
+                  categories.insert(0, 'Tất cả');
+
+                  //Lọc nhiệm vụ
+                  final searchTerms = _searchController.text.toLowerCase().trim().split(' ');
+                  final filteredTasks = allTasks.where((task) {
+                    final bool matchesActive = task.isActive;
+                    final bool matchesCategory = selectedCategory == 'Tất cả' || task.category == selectedCategory;
+                    final bool matchesSearch = searchTerms.every((term) {
+                      return task.title.toLowerCase().contains(term);
+                    });
+
+                    return matchesActive && matchesCategory && matchesSearch;
+                  }).toList();
+
+                  return Column(
                     children: [
-                      Text('GREENSTEP', style: AppTextStyles.caption.copyWith(color: AppColors.primaryDarkGreen, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                      const SizedBox(height: 8),
-                      Text('Hành Động Xanh', style: AppTextStyles.heading1.copyWith(color: AppColors.textPrimary)),
-                    ],
-                  ),
-                ),
-
-                // Thanh tìm kiếm
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Tìm kiếm nhiệm vụ...',
-                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
-                      filled: true,
-                      fillColor: AppColors.surfaceLight,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-                    ),
-                  ),
-                ),
-
-                // Thanh lọc Category
-                SizedBox(
-                  height: 40,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
-                      bool isSelected = selectedCategory == categories[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: SizedBox(
-                          width: 105,
-                          child: GestureDetector(
-                            onTap: () => setState(() => selectedCategory = categories[index]),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primaryGreen : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: isSelected ? Colors.transparent : Colors.grey.shade300),
-                              ),
-                              child: Text(
-                                categories[index],
-                                style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.black54,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                      // Thanh lọc Category
+                      SizedBox(
+                        height: 40,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            bool isSelected = selectedCategory == categories[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: SizedBox(
+                                width: 105,
+                                child: GestureDetector(
+                                  onTap: () => setState(() => selectedCategory = categories[index]),
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppColors.primaryGreen : Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: isSelected ? Colors.transparent : Colors.grey.shade300),
+                                    ),
+                                    child: Text(
+                                      categories[index],
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.black54,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
 
-                // Lưới hiển thị nhiệm vụ
-                Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(20),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.65,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: filteredTasks.length,
-                    itemBuilder: (context, index) {
-                      return TaskCard(task: filteredTasks[index]);
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+                      // Lưới hiển thị nhiệm vụ
+                      Expanded(
+                        child: GridView.builder(
+                          padding: const EdgeInsets.all(20),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.65,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                          ),
+                          itemCount: filteredTasks.length,
+                          itemBuilder: (context, index) {
+                            return TaskCard(task: filteredTasks[index]);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
