@@ -59,6 +59,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
   }
 
+  Future<void> _onGooglePressed() async {
+    final error = await ref.read(authViewModelProvider.notifier).loginWithGoogle();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đăng nhập Google thành công. Chào mừng đến GreenStep!'),
+      ),
+    );
+
+    Navigator.of(context).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
@@ -316,17 +337,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Google Sign-In sẽ được bật sau.',
-                                    ),
-                                  ),
-                                );
-                              },
+                        onPressed: isLoading ? null : _onGooglePressed,
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           side: BorderSide(
@@ -336,7 +347,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           foregroundColor: Colors.white,
                         ),
-                        icon: const Icon(Icons.lock_open_rounded),
+                        icon: const Icon(Icons.g_mobiledata_rounded),
                         label: const Text(
                           'Tiếp tục với Google',
                           style: TextStyle(

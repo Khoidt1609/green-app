@@ -53,13 +53,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _skip() {
+  Future<void> _skip() async {
     Navigator.of(context).pushReplacementNamed(AppRouter.login);
   }
 
-  void _next() {
+  Future<void> _next() async {
     if (_index == _pages.length - 1) {
-      _skip();
+      await _skip();
       return;
     }
 

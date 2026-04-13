@@ -15,6 +15,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _locationController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -24,6 +25,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _usernameController.dispose();
     _locationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -41,6 +43,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         .register(
           email: _emailController.text,
           password: _passwordController.text,
+          fullName: _fullNameController.text,
+          username: _usernameController.text,
+          location: _locationController.text,
         );
 
     if (!mounted) {
@@ -181,6 +186,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Vui lòng nhập họ tên';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Tên đăng nhập',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _RegisterField(
+                        controller: _usernameController,
+                        hint: 'minhnguyen',
+                        prefixIcon: Icons.alternate_email_outlined,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Vui lòng nhập tên đăng nhập';
+                          }
+
+                          final username = value.trim();
+                          if (username.length < 3) {
+                            return 'Tên đăng nhập tối thiểu 3 ký tự';
+                          }
+
+                          final usernameRegex = RegExp(r'^[a-zA-Z0-9_.]+$');
+                          if (!usernameRegex.hasMatch(username)) {
+                            return 'Chỉ gồm chữ, số, dấu gạch dưới hoặc chấm';
                           }
                           return null;
                         },
