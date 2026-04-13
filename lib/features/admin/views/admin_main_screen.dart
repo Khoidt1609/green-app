@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:green_app/core/constants/app_colors.dart';
 import 'package:green_app/core/constants/app_text_styles.dart';
 import 'package:green_app/features/admin/views/admin_tasks_tab.dart';
+import 'package:green_app/features/admin/views/admin_transaction_tab.dart';
 import 'admin_submissions_tab.dart'; // Tab mình sẽ vẽ chi tiết bên dưới
 
 class AdminMainScreen extends StatefulWidget {
@@ -19,7 +20,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     const AdminSubmissionsTab(), // Tab Duyệt bài
     const AdminTasksTab(),
     const Center(child: Text("Quản lý Users")),
-    const Center(child: Text("Lệnh rút tiền")),
+    const AdminTransactionsTab(),
   ];
 
   @override
