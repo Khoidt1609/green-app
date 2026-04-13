@@ -19,6 +19,10 @@ class AuthService {
   FirebaseFirestore get _firestore =>
       _firestoreOverride ?? FirebaseFirestore.instance;
 
+  User? get currentUser => _auth.currentUser;
+
+  Stream<User?> authStateChanges() => _auth.authStateChanges();
+
   Future<void> signIn({required String email, required String password}) async {
     try {
       await _auth.signInWithEmailAndPassword(
@@ -62,6 +66,40 @@ class AuthService {
       }
       throw AuthException('Tạo tài khoản thành công nhưng lưu hồ sơ thất bại.');
     }
+  }
+
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
+  Future<Map<String, dynamic>?> getCurrentUserProfile() async {
+    final user = currentUser;
+    if (user == null) {
+      return null;
+    }
+
+    final snapshot = await _firestore.collection('users').doc(user.uid).get();
+    return snapshot.data();
+  }
+
+  Future<void> saveCurrentUserProfile({
+    required String fullName,
+    required String city,
+    required String district,
+  }) async {
+    final user = currentUser;
+    if (user == null) {
+      throw AuthException('Bạn chưa đăng nhập.');
+    }
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'email': user.email,
+      'fullName': fullName.trim(),
+      'city': city.trim(),
+      'district': district.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   String _mapFirebaseAuthError(FirebaseAuthException e) {

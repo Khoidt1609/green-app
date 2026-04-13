@@ -1,10 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/auth_providers.dart';
 import '../../../core/services/auth_service.dart';
-
-final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService();
-});
 
 final authViewModelProvider = NotifierProvider<AuthViewModel, AsyncValue<void>>(
   AuthViewModel.new,
@@ -19,7 +16,10 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     return const AsyncData(null);
   }
 
-  Future<String?> login({required String email, required String password}) async {
+  Future<String?> login({
+    required String email,
+    required String password,
+  }) async {
     state = const AsyncLoading();
 
     try {
@@ -32,7 +32,10 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     }
   }
 
-  Future<String?> register({required String email, required String password}) async {
+  Future<String?> register({
+    required String email,
+    required String password,
+  }) async {
     state = const AsyncLoading();
 
     try {
