@@ -19,7 +19,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Greenstep',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      themeMode: ThemeMode.light,
       home: const TaskListScreen(),
     );
   }
