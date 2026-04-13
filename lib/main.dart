@@ -35,7 +35,7 @@ class GreenStepApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       onGenerateRoute: AppRouter.onGenerateRoute,
-      home: const OnboardingScreen(),
+      initialRoute: AppRouter.onboarding,
     );
   }
 }

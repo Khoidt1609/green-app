@@ -330,39 +330,41 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            gradient: const LinearGradient(
-                              colors: [
-                                AppColors.primaryGreen,
-                                AppColors.primaryDarkGreen,
-                              ],
-                            ),
-                          ),
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
+                        child: Opacity(
+                          opacity: isLoading ? 0.7 : 1,
+                          child: GestureDetector(
+                            onTap: isLoading ? null : _onRegisterPressed,
+                            child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 15),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppColors.primaryGreen,
+                                    AppColors.primaryDarkGreen,
+                                  ],
+                                ),
+                              ),
+                              child: Center(
+                                child: isLoading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Tạo tài khoản',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                              ),
                             ),
-                            onPressed: isLoading ? null : _onRegisterPressed,
-                            child: isLoading
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Tạo tài khoản',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
                           ),
                         ),
                       ),

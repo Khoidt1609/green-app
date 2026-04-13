@@ -237,9 +237,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return;
       }
 
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil(AppRouter.login, (route) => false);
+      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+        AppRouter.login,
+        (route) => false,
+      );
     } on AuthException catch (e) {
       if (!mounted) {
         return;

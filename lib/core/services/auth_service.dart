@@ -183,6 +183,13 @@ class AuthService {
 
   Future<void> signOut() async {
     await _auth.signOut();
+
+    // Ensure cached Google session is cleared on device/emulator.
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // Ignore plugin-specific sign out errors; Firebase signOut already ran.
+    }
   }
 
   Future<Map<String, dynamic>?> getCurrentUserProfile() async {
