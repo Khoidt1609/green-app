@@ -142,7 +142,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       // Lưới hiển thị nhiệm vụ
                       Expanded(
-                        child: GridView.builder(
+                        child: filteredTasks.isEmpty
+                            ? const Center(
+                          child: Text(
+                            'Chưa có nhiệm vụ phù hợp',
+                            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                            : GridView.builder(
                           padding: const EdgeInsets.all(20),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
