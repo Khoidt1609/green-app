@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'features/auth/views/login_screen.dart';
 import 'features/auth/views/onboarding_screen.dart';
 import 'features/home/views/home_screen.dart';
 import 'router/app_router.dart';

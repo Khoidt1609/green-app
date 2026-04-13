@@ -130,7 +130,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 AppColors.primaryDarkGreen,
                               ],
                             ),
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
                                 color: AppColors.primaryGreen.withValues(
                                   alpha: 0.35,
@@ -233,7 +233,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: const AppColors.primaryGreen.withValues(
+                            color: AppColors.primaryGreen.withValues(
                               alpha: 0.75,
                             ),
                           ),
@@ -332,7 +332,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Row(
+                      Row(
                         children: [
                           Expanded(
                             child: Divider(
@@ -372,7 +372,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: const BorderSide(
+                          side: BorderSide(
                             color: AppColors.primaryGreen.withValues(
                               alpha: 0.35,
                             ),
@@ -452,20 +452,20 @@ class _RegisterField extends StatelessWidget {
         hintStyle: const TextStyle(color: AppColors.textSecondary),
         prefixIcon: Icon(
           prefixIcon,
-          color: const AppColors.primaryGreen.withValues(alpha: 0.75),
+          color: AppColors.primaryGreen.withValues(alpha: 0.75),
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: const AppColors.primaryGreen.withValues(alpha: 0.08),
+        fillColor: AppColors.primaryGreen.withValues(alpha: 0.08),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppColors.primaryGreen.withValues(alpha: 0.25),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppColors.primaryGreen.withValues(alpha: 0.25),
           ),
         ),

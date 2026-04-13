@@ -185,7 +185,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           height: 96,
                                           child: Stack(
                                             alignment: Alignment.center,
-                                            children: const [
+                                            children: [
                                               CircularProgressIndicator(
                                                 value: 0,
                                                 strokeWidth: 8,
@@ -428,11 +428,11 @@ class _TaskPlaceholderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
+            children: [
               CircleAvatar(
                 radius: 16,
                 backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.15),
-                child: Icon(
+                child: const Icon(
                   Icons.assignment_outlined,
                   size: 16,
                   color: AppColors.primaryGreen,

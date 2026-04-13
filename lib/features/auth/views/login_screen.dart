@@ -111,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 AppColors.primaryDarkGreen,
                               ],
                             ),
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
                                 color: AppColors.primaryGreen.withValues(
                                   alpha: 0.35,
@@ -289,7 +289,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Row(
+                      Row(
                         children: [
                           Expanded(
                             child: Divider(
