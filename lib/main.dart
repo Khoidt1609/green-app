@@ -63,6 +63,7 @@ class GreenStepApp extends StatelessWidget {
 }
 
 //CODE TEST GIAO DIEN NHIEM VU
+// import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:flutter/material.dart';
 // import 'package:firebase_core/firebase_core.dart';
 // import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,6 +75,15 @@ class GreenStepApp extends StatelessWidget {
 //   WidgetsFlutterBinding.ensureInitialized();
 //   // Khởi tạo Firebase trước khi chạy App
 //   await Firebase.initializeApp();
+//   // THÊM DÒNG NÀY: Để Firebase Storage cho phép gửi Token đi
+//   if (FirebaseAuth.instance.currentUser == null) {
+//     try {
+//       await FirebaseAuth.instance.signInAnonymously();
+//       print(">>> Đã lấy được Token ẩn danh để test Storage!");
+//     } catch (e) {
+//       print(">>> Lỗi lấy Token: $e");
+//     }
+//   }
 //   runApp(
 //     // Bọc toàn bộ ứng dụng trong ProviderScope để Riverpod hoạt động
 //     const ProviderScope(
