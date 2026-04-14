@@ -25,9 +25,10 @@ final searchTasksProvider = Provider<AsyncValue<List<TaskModel>>>((ref) {
 
     // Lọc
     return list.where((task) {
-      // Tìm theo Tên nhiệm vụ hoặc Tên danh mục
-      return task.title.toLowerCase().contains(query) ||
-          task.category.toLowerCase().contains(query);
+      final title = (task.title ?? '').toLowerCase();
+      final category = (task.category ?? '').toLowerCase();
+
+      return title.contains(query) || category.contains(query);
     }).toList();
   });
 });

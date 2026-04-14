@@ -27,10 +27,7 @@ class GreenStepApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('vi'),
-        Locale('en'),
-      ],
+      supportedLocales: const [Locale('vi'), Locale('en')],
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
@@ -91,4 +88,3 @@ class GreenStepApp extends StatelessWidget {
 //     );
 //   }
 // }
-

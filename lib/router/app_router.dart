@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:green_app/features/admin/views/admin_main_screen.dart';
 
 import '../features/auth/views/login_screen.dart';
 import '../features/auth/views/onboarding_screen.dart';

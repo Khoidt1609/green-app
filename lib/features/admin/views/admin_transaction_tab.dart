@@ -77,46 +77,50 @@ class AdminTransactionsTab extends ConsumerWidget {
                             const Divider(
                               height: 24,
                             ), // Đường kẻ ngang phân tách nội dung và nút
+
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 // Nút Từ chối kiểu Outlined cho nhẹ nhàng
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(
-                                      color: Colors.red,
-                                      width: 1,
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(
+                                        color: Colors.red,
+                                        width: 1,
+                                      ),
                                     ),
-                                  ),
 
-                                  onPressed: () => _showRejectConfirmDialog(
-                                    context,
-                                    ref,
-                                    tx,
+                                    onPressed: () => _showRejectConfirmDialog(
+                                      context,
+                                      ref,
+                                      tx,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.cancel_outlined,
+                                      size: 18,
+                                    ),
+                                    label: const Text("Từ chối"),
                                   ),
-                                  icon: const Icon(
-                                    Icons.cancel_outlined,
-                                    size: 18,
-                                  ),
-                                  label: const Text("Từ chối"),
                                 ),
                                 const SizedBox(width: 12),
                                 // Nút Xử lý kiểu Elevated cho nổi bật
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primaryGreen,
-                                  ),
-                                  onPressed: () =>
-                                      _showVietQRDialog(context, ref, tx),
-                                  icon: const Icon(
-                                    Icons.qr_code_scanner,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  label: const Text(
-                                    "Xử lý",
-                                    style: TextStyle(color: Colors.white),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primaryGreen,
+                                    ),
+                                    onPressed: () =>
+                                        _showVietQRDialog(context, ref, tx),
+                                    icon: const Icon(
+                                      Icons.qr_code_scanner,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                    label: const Text(
+                                      "Xử lý",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -168,8 +172,8 @@ class AdminTransactionsTab extends ConsumerWidget {
             children: [
               // Khung hiển thị mã QR
               Container(
-                width: 400,
-                height: 350,
+                width: 250,
+                height: 250,
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(12),

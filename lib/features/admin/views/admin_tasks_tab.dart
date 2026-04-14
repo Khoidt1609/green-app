@@ -107,7 +107,8 @@ class AdminTasksTab extends ConsumerWidget {
 
   // Card tasks
   Widget _buildTaskCard(BuildContext context, WidgetRef ref, TaskModel task) {
-    final bool isDisabled = !task.isActive;
+    final bool isActive = task.isActive ?? true; // Nếu Firebase không có, mặc định là true
+    final bool isDisabled = !isActive;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -160,7 +161,7 @@ class AdminTasksTab extends ConsumerWidget {
                             // Tên nhiệm vụ (Dùng Expanded để không bị tràn màn hình nếu tên dài)
                             Expanded(
                               child: Text(
-                                task.title,
+                                task.title ?? "Không có tiêu đề",
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -194,7 +195,7 @@ class AdminTasksTab extends ConsumerWidget {
                         const SizedBox(height: 4),
                         // Phân loại
                         Text(
-                          task.category,
+                          task.category ?? "Chưa phân loại",
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 13,
@@ -208,6 +209,8 @@ class AdminTasksTab extends ConsumerWidget {
 
               const SizedBox(height: 8),
               const Divider(height: 1),
+              const SizedBox(height: 4),
+
 
               //  Công tắc, Nút Sửa & Nút Xóa
               Row(
@@ -219,7 +222,7 @@ class AdminTasksTab extends ConsumerWidget {
                       SizedBox(
                         height: 40,
                         child: Switch(
-                          value: task.isActive,
+                          value: isActive,
                           activeColor: AppColors.primaryGreen,
                           onChanged: (value) {
                             ref
@@ -243,56 +246,39 @@ class AdminTasksTab extends ConsumerWidget {
 
                   // Bên phải dưới cùng: Nút Sửa và Nút Xóa
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Nút Sửa
-                      ElevatedButton.icon(
-                        label: Text('Sửa'),
-
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: AppColors.primaryDarkGreen,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.lightGreenAccent.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.lightGreenAccent.withOpacity(0.5)),
                         ),
-                        onPressed: isDisabled
-                            ? null
-                            : () {
-                                _showTaskForm(context, task: task);
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.lightGreenAccent.withOpacity(
-                            0.2,
-                          ),
-                          foregroundColor: AppColors.primaryDarkGreen,
-                          elevation: 0,
-                          side: BorderSide(
-                            color: Colors.lightGreenAccent.withOpacity(0.5),
-                          ),
+                        child: IconButton(
+                          tooltip: "Sửa nhiệm vụ", // Nhấn giữ hiện chữ
+                          icon: const Icon(Icons.edit_outlined, color: AppColors.primaryDarkGreen, size: 20),
+                          onPressed: isDisabled ? null : () => _showTaskForm(context, task: task),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(), // Thu gọn kích thước thừa
                         ),
                       ),
-                      const SizedBox(width: 8),
+
+                      const SizedBox(width: 10), // Khoảng cách giữa 2 nút
+
                       // Nút Xóa
-                      ElevatedButton.icon(
-                        onPressed: isDisabled
-                            ? null
-                            : () {
-                                _showDeleteConfirmDialog(context, ref, task.id);
-                              },
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ), // Icon đỏ
-                        label: const Text('Xóa'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.withOpacity(0.1),
-                          foregroundColor: Colors.red.shade900,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          side: BorderSide(color: Colors.red.withOpacity(0.2)),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.withOpacity(0.2)),
+                        ),
+                        child: IconButton(
+                          tooltip: "Xóa nhiệm vụ", // Nhấn giữ hiện chữ
+                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                          onPressed: isDisabled ? null : () => _showDeleteConfirmDialog(context, ref, task.id),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
                         ),
                       ),
                     ],
