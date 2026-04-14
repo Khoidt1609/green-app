@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'bank_info_model.dart';
-import 'user_model.dart'; // Bắt buộc phải có dòng này
 
 class TransactionModel {
   final String id;

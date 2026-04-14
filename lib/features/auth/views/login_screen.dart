@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../viewmodels/auth_view_model.dart';
-import '../widgets/custom_text_field.dart';
-import 'register_screen.dart';
+import '../../../router/app_router.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +16,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -29,7 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final error = await ref.read(authViewModelProvider.notifier).login(
+    final error = await ref
+        .read(authViewModelProvider.notifier)
+        .login(
           email: _emailController.text,
           password: _passwordController.text,
         );
@@ -39,15 +42,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đăng nhập thành công. Chào mừng đến GreenStep!')),
+      const SnackBar(
+        content: Text('Đăng nhập thành công. Chào mừng đến GreenStep!'),
+      ),
     );
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+  }
+
+  Future<void> _onGooglePressed() async {
+    final error = await ref.read(authViewModelProvider.notifier).loginWithGoogle();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đăng nhập Google thành công. Chào mừng đến GreenStep!'),
+      ),
+    );
+
+    Navigator.of(context).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
   }
 
   @override
@@ -58,66 +88,130 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFE5F7E9), Color(0xFFF4FBF4), Color(0xFFD4EFDA)],
+          gradient: RadialGradient(
+            center: Alignment(-0.9, -0.95),
+            radius: 1.4,
+            colors: [AppColors.primaryDarkGreen, AppColors.backgroundDark],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(30),
+                    color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                    ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x2633663A),
-                        blurRadius: 22,
-                        offset: Offset(0, 12),
+                        color: Color(0x50000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 10),
                       ),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            height: 52,
-                            width: 52,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFECF8EE),
-                              borderRadius: BorderRadius.circular(16),
+                      Center(
+                        child: Container(
+                          height: 74,
+                          width: 74,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.primaryGreen,
+                                AppColors.primaryDarkGreen,
+                              ],
                             ),
-                            child: const Icon(Icons.eco_rounded, color: Color(0xFF1B5E20)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryGreen.withValues(
+                                  alpha: 0.35,
+                                ),
+                                blurRadius: 20,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'GreenStep',
-                              style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
-                            ),
+                          child: const Icon(
+                            Icons.eco_outlined,
+                            color: Colors.white,
+                            size: 35,
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 18),
                       const Text(
-                        'Đăng nhập để tiếp tục hành trình sống xanh và theo dõi điểm tích lũy mỗi ngày.',
-                        style: TextStyle(fontSize: 14, height: 1.45, color: Color(0xFF54705B)),
+                        'Đăng nhập',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 36,
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      CustomTextField(
+                      const Text(
+                        'Chào mừng trở lại!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                          border: Border.all(
+                            color: AppColors.primaryGreen.withValues(
+                              alpha: 0.25,
+                            ),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.sync_alt_rounded,
+                              color: AppColors.primaryGreen,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Earn-to-Reward Cycle\nHành động xanh -> Điểm thưởng -> Bảng xếp hạng -> Nhận tiền mặt',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Email',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _AuthField(
                         controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.mail_outline_rounded,
-                        hint: 'you@example.com',
+                        hint: 'email@example.com',
+                        prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -130,11 +224,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      CustomTextField(
+                      const Text(
+                        'Mật khẩu',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _AuthField(
                         controller: _passwordController,
-                        label: 'Mật khẩu',
-                        icon: Icons.lock_outline_rounded,
-                        obscureText: true,
+                        hint: '••••••••',
+                        prefixIcon: Icons.lock_outline,
+                        obscureText: _obscurePassword,
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: AppColors.primaryGreen.withValues(
+                              alpha: 0.75,
+                            ),
+                          ),
+                        ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Vui lòng nhập mật khẩu';
@@ -145,40 +262,186 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: isLoading ? null : _onLoginPressed,
-                          icon: isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.login_rounded),
-                          label: Text(isLoading ? 'Đang xử lý...' : 'Đăng nhập'),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {},
+                          child: const Text('Quên mật khẩu?'),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      TextButton.icon(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const RegisterScreen(),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.primaryGreen,
+                                AppColors.primaryDarkGreen,
+                              ],
+                            ),
+                          ),
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            onPressed: isLoading ? null : _onLoginPressed,
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Đăng nhập',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                );
-                              },
-                        icon: const Icon(Icons.person_add_alt_rounded),
-                        label: const Text('Chưa có tài khoản? Đăng ký ngay'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.primaryGreen.withValues(
+                                alpha: 0.2,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              'hoặc',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.primaryGreen.withValues(
+                                alpha: 0.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: isLoading ? null : _onGooglePressed,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(
+                            color: AppColors.primaryGreen.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.g_mobiledata_rounded),
+                        label: const Text(
+                          'Tiếp tục với Google',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Chưa có tài khoản? ',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                          TextButton(
+                            onPressed: isLoading
+                                ? null
+                                : () {
+                                    Navigator.of(
+                                      context,
+                                    ).pushNamed(AppRouter.register);
+                                  },
+                            child: const Text('Đăng ký ngay'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthField extends StatelessWidget {
+  const _AuthField({
+    required this.controller,
+    required this.hint,
+    required this.prefixIcon,
+    this.keyboardType,
+    this.obscureText = false,
+    this.validator,
+    this.suffixIcon,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final IconData prefixIcon;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final FormFieldValidator<String>? validator;
+  final Widget? suffixIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      validator: validator,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppColors.textSecondary),
+        prefixIcon: Icon(
+          prefixIcon,
+          color: AppColors.primaryGreen.withValues(alpha: 0.75),
+        ),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: AppColors.primaryGreen.withValues(alpha: 0.08),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: AppColors.primaryGreen,
+            width: 1.4,
           ),
         ),
       ),
