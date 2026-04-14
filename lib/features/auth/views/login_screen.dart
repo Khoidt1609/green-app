@@ -60,14 +60,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _onGooglePressed() async {
-    final error = await ref.read(authViewModelProvider.notifier).loginWithGoogle();
+    final error = await ref
+        .read(authViewModelProvider.notifier)
+        .loginWithGoogle();
 
     if (!mounted) {
       return;
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -77,7 +81,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
 
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+  }
+
+  Future<void> _onForgotPasswordPressed() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nhập email trước để nhận mã xác nhận.')),
+      );
+      return;
+    }
+
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quên mật khẩu chỉ hỗ trợ theo email.')),
+      );
+      return;
+    }
+
+    final error = await ref
+        .read(authViewModelProvider.notifier)
+        .forgotPassword(email: email);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -201,7 +241,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Email',
+                        'Email hoặc tên đăng nhập',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 13,
@@ -210,14 +250,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 6),
                       _AuthField(
                         controller: _emailController,
-                        hint: 'email@example.com',
+                        hint: 'email@example.com hoặc minhnguyen',
                         prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Vui lòng nhập email';
+                            return 'Vui lòng nhập email hoặc tên đăng nhập';
                           }
-                          if (!value.contains('@')) {
+                          if (value.contains('@') && !value.contains('.')) {
                             return 'Email không hợp lệ';
                           }
                           return null;
@@ -266,7 +306,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: isLoading
+                              ? null
+                              : _onForgotPasswordPressed,
                           child: const Text('Quên mật khẩu?'),
                         ),
                       ),

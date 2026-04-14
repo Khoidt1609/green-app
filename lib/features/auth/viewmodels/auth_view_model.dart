@@ -45,6 +45,19 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     }
   }
 
+  Future<String?> forgotPassword({required String email}) async {
+    state = const AsyncLoading();
+
+    try {
+      await _authService.sendPasswordResetEmail(email: email);
+      state = const AsyncData(null);
+      return null;
+    } on AuthException catch (e, stackTrace) {
+      state = AsyncError(e, stackTrace);
+      return e.message;
+    }
+  }
+
   Future<String?> register({
     required String email,
     required String password,
