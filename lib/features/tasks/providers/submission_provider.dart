@@ -6,7 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../data/models/task_model.dart';
 import '../../../data/models/submission_model.dart';
-import 'dart:typed_data';
+import 'package:dio/dio.dart';
 
 
 // Quản lý file ảnh đang được chọn
@@ -60,84 +60,78 @@ class SubmissionService {
 
   // Xử lý Upload và Lưu Database
   Future<bool> submitTask(TaskModel task, String note) async {
-    // [GIAI ĐOẠN 1]: KIỂM TRA ĐẦU VÀO
     final images = ref.read(pickedImagesProvider);
     if (images.isEmpty) return false;
 
-    // Kích hoạt vòng xoay Loading trên UI
-    ref.read(submissionLoadingProvider.notifier).state = true;
+    ref
+        .read(submissionLoadingProvider.notifier)
+        .state = true;
 
     try {
-      // [GIAI ĐOẠN 2]: XÁC THỰC NGƯỜI DÙNG
-      User? currentUser = FirebaseAuth.instance.currentUser;
-
-      // Fallback: Tự động cấp quyền nếu đang test mà chưa đăng nhập
-      if (currentUser == null) {
-        print(">>> Hệ thống: Đang cấp quyền ẩn danh để test...");
-        await FirebaseAuth.instance.signInAnonymously();
-        currentUser = FirebaseAuth.instance.currentUser;
+      // 1. LẤY THÔNG TIN USER ĐANG ĐĂNG NHẬP
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print(">>> Lỗi: Bạn cần đăng nhập để nộp bài!");
+        return false;
       }
 
-      // Đặt biến UID mặc định là tài khoản thật của Bin nếu chạy ẩn danh
-      String currentUid = currentUser?.uid ?? 'zX8uGGc0S0bItRhIsjppimhULdH2';
-      String currentEmail = currentUser?.email ?? 'bin05062006@gmail.com';
-      String currentName = currentUser?.displayName ?? 'Bin (bin05062006)';
+      // 2. THÔNG SỐ CLOUDINARY (Nhóm tự điền thông tin của mình nhé)
+      const String cloudName = "dfvtfibtx";
+      const String uploadPreset = "greenstep_preset";
+      const String cloudinaryUrl = "https://api.cloudinary.com/v1_1/$cloudName/image/upload";
 
-      // [GIAI ĐOẠN 3]: UPLOAD ẢNH (Bảo mật 404)
       List<String> downloadUrls = [];
+      final dio = Dio();
 
-      for (int i = 0; i < images.length; i++) {
-        // Tạo đường dẫn riêng biệt cho từng ảnh của user
-        String fileName = 'submissions/$currentUid/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-        Reference refStorage = FirebaseStorage.instance.ref().child(fileName);
+      // 3. THUẬT TOÁN UPLOAD ẢNH
+      for (var image in images) {
+        FormData formData = FormData.fromMap({
+          "file": await MultipartFile.fromFile(image.path),
+          "upload_preset": uploadPreset,
+          "folder": "greenstep/submissions/${user.uid}",
+          // Phân loại ảnh theo UID thật
+        });
 
-        // THUẬT TOÁN BĂM BYTE: Ép máy ảo đọc file vật lý trước khi đẩy
-        Uint8List fileBytes = await images[i].readAsBytes();
-
-        print(">>> Đang đẩy ảnh $i lên máy chủ...");
-        TaskSnapshot snapshot = await refStorage.putData(fileBytes);
-
-        // Chỉ lấy link khi hệ thống xác nhận đã lưu xong 100%
-        String url = await snapshot.ref.getDownloadURL();
-        downloadUrls.add(url);
+        var response = await dio.post(cloudinaryUrl, data: formData);
+        if (response.statusCode == 200) {
+          downloadUrls.add(response.data['secure_url']);
+        }
       }
 
-      // [GIAI ĐOẠN 4]: ĐÓNG GÓI VÀ LƯU DATABASE GỐC
+      // 4. LƯU VÀO FIRESTORE (Khớp 100% các trường bạn yêu cầu)
       final submission = SubmissionModel(
         id: '',
-        userId: currentUid,
-        userName: currentName,
+        userId: user.uid,
+        // Sử dụng UID từ Firebase Auth
+        userName: user.displayName ?? user.email?.split('@')[0] ??
+            'Người dùng GreenStep',
         taskId: task.id,
         taskTitle: task.title,
-        proofUrls: downloadUrls, // Mảng chứa các link ảnh đã upload
+        proofUrls: downloadUrls,
         pointsReward: task.pointsReward,
         createdAt: DateTime.now(),
       );
 
-      // Chuyển Model thành Map để chuẩn bị lưu
       Map<String, dynamic> dataToSave = submission.toMap();
-
-      // Bổ sung các trường Extra theo thiết kế ban đầu của bạn
       dataToSave['userNote'] = note;
-      dataToSave['userEmail'] = currentEmail;
+      dataToSave['userEmail'] =
+          user.email; // Lưu email thật để thầy cô dễ kiểm tra
 
-      // Thực thi lưu vào Firestore
-      print("Đang ghi nhận dữ liệu vào CSDL...");
-      await FirebaseFirestore.instance.collection('submissions').add(dataToSave);
+      await FirebaseFirestore.instance.collection('submissions').add(
+          dataToSave);
 
-      print("HOÀN TẤT: Nhiệm vụ cuối cùng đã thành công rực rỡ!");
-
-      // Dọn dẹp RAM: Xóa ảnh đã chọn trên màn hình
-      ref.read(pickedImagesProvider.notifier).state = [];
+      print(">>> THÀNH CÔNG: Bài nộp của ${user.email} đã lên hệ thống!");
+      ref
+          .read(pickedImagesProvider.notifier)
+          .state = [];
       return true;
-
     } catch (e) {
-      // báo đỏ về UI
-      print("LỖI HỆ THỐNG CRITICAL: $e");
+      print("❌ LỖI HỆ THỐNG: $e");
       return false;
     } finally {
-      // Luôn tắt vòng xoay Loading dù kết quả ra sao
-      ref.read(submissionLoadingProvider.notifier).state = false;
+      ref
+          .read(submissionLoadingProvider.notifier)
+          .state = false;
     }
   }
 }
