@@ -477,7 +477,7 @@ class _RegisterField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.textSecondary),
@@ -487,17 +487,17 @@ class _RegisterField extends StatelessWidget {
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: AppColors.primaryGreen.withValues(alpha: 0.08),
+        fillColor: AppColors.surfaceLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         focusedBorder: OutlineInputBorder(
