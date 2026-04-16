@@ -255,11 +255,11 @@ class _PrizeBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const _PrizeChip(medal: '🥇', amount: r'$100', label: 'Top 1'),
+          const _PrizeChip(medal: '🥇', amount: r'300.000 VND', label: 'Top 1'),
           const SizedBox(width: 12),
-          const _PrizeChip(medal: '🥈', amount: r'$50', label: 'Top 2'),
+          const _PrizeChip(medal: '🥈', amount: r'100.000 VND', label: 'Top 2'),
           const SizedBox(width: 12),
-          const _PrizeChip(medal: '🥉', amount: r'$25', label: 'Top 3'),
+          const _PrizeChip(medal: '🥉', amount: r'50.000VND', label: 'Top 3'),
           const Spacer(),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -693,7 +693,7 @@ class _Top3PodiumState extends State<_Top3Podium> with TickerProviderStateMixin 
                         entry: top3[1],
                         medalColor: _silver,
                         isFirst: false,
-                        prize: r'$50',
+                        prize: r'100.000',
                       ),
                     ),
                   ),
@@ -711,7 +711,7 @@ class _Top3PodiumState extends State<_Top3Podium> with TickerProviderStateMixin 
                       entry: top3[0],
                       medalColor: _gold,
                       isFirst: true,
-                      prize: r'$100',
+                      prize: r'300.000',
                     ),
                   ),
                 ),
@@ -728,7 +728,7 @@ class _Top3PodiumState extends State<_Top3Podium> with TickerProviderStateMixin 
                         entry: top3[2],
                         medalColor: _bronze,
                         isFirst: false,
-                        prize: r'$25',
+                        prize: r'50.000',
                       ),
                     ),
                   ),
@@ -971,10 +971,10 @@ class _LeaderboardRow extends StatelessWidget {
                     const SizedBox(width: 3),
                     Text(
                       entry.rank == 1
-                          ? r'$100'
+                          ? r'300.000'
                           : entry.rank == 2
-                              ? r'$50'
-                              : r'$25',
+                              ? r'10.0000'
+                              : r'50.000',
                       style: TextStyle(color: textSub, fontSize: 11),
                     ),
                   ],
