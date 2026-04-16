@@ -131,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           gradient: RadialGradient(
             center: Alignment(-0.9, -0.95),
             radius: 1.4,
-            colors: [AppColors.primaryDarkGreen, AppColors.backgroundDark],
+            colors: [Color(0xFFEAF7F0), AppColors.backgroundLight],
           ),
         ),
         child: SafeArea(
@@ -144,14 +144,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   constraints: const BoxConstraints(maxWidth: 440),
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                    color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                      color: AppColors.borderLight,
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x50000000),
+                        color: Color(0x12000000),
                         blurRadius: 24,
                         offset: Offset(0, 10),
                       ),
@@ -194,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         'Đăng nhập',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.w800,
                           fontSize: 36,
                         ),
@@ -212,11 +212,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                          color: AppColors.surfaceMutedLight,
                           border: Border.all(
-                            color: AppColors.primaryGreen.withValues(
-                              alpha: 0.25,
-                            ),
+                            color: AppColors.borderLight,
                           ),
                         ),
                         child: const Row(
@@ -230,7 +228,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: Text(
                                 'Earn-to-Reward Cycle\nHành động xanh -> Điểm thưởng -> Bảng xếp hạng -> Nhận tiền mặt',
                                 style: TextStyle(
-                                  color: AppColors.textSecondary,
+                                  color: AppColors.textPrimary,
                                   fontSize: 12,
                                   height: 1.3,
                                 ),
@@ -356,12 +354,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           Expanded(
                             child: Divider(
-                              color: AppColors.primaryGreen.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.borderLight,
                             ),
                           ),
-                          Padding(
+                          const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'hoặc',
@@ -370,9 +366,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           Expanded(
                             child: Divider(
-                              color: AppColors.primaryGreen.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.borderLight,
                             ),
                           ),
                         ],
@@ -383,11 +377,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           side: BorderSide(
-                            color: AppColors.primaryGreen.withValues(
-                              alpha: 0.35,
-                            ),
+                            color: AppColors.primaryGreen.withValues(alpha: 0.35),
                           ),
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.primaryDarkGreen,
                         ),
                         icon: const Icon(Icons.g_mobiledata_rounded),
                         label: const Text(
