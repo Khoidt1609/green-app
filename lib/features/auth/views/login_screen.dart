@@ -90,14 +90,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nhập email trước để nhận mã xác nhận.')),
-      );
-      return;
-    }
-
-    if (!email.contains('@') || !email.contains('.')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quên mật khẩu chỉ hỗ trợ theo email.')),
+        const SnackBar(
+          content: Text('Nhập email hoặc tên đăng nhập trước khi khôi phục.'),
+        ),
       );
       return;
     }
@@ -116,6 +111,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã gửi email khôi phục mật khẩu. Hãy kiểm tra hộp thư.'),
+      ),
+    );
 
     FocusScope.of(context).unfocus();
   }
@@ -448,7 +449,7 @@ class _AuthField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.textSecondary),
@@ -458,17 +459,17 @@ class _AuthField extends StatelessWidget {
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: AppColors.primaryGreen.withValues(alpha: 0.08),
+        fillColor: AppColors.surfaceLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         focusedBorder: OutlineInputBorder(
