@@ -13,7 +13,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _currentTab = 0;
   bool _isLoadingProfile = true;
   bool _isLoadingTasks = true;
   Map<String, dynamic>? _profileData;
@@ -60,32 +59,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _tasks = taskData;
       _isLoadingTasks = false;
     });
-  }
-
-  void _onTapBottomNav(int index) {
-    if (_currentTab == index) {
-      return;
-    }
-
-    switch (index) {
-      case 0:
-        setState(() {
-          _currentTab = index;
-        });
-        break;
-      case 1:
-        break;
-      case 2:
-        setState(() {
-          _currentTab = index;
-        });
-        Navigator.of(context).pushReplacementNamed(AppRouter.tasks);
-        break;
-      case 3:
-        break;
-      case 4:
-        break;
-    }
   }
 
   @override
@@ -662,55 +635,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 18),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: AppColors.borderLight),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x14000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: BottomNavigationBar(
-                      type: BottomNavigationBarType.fixed,
-                      currentIndex: _currentTab,
-                      onTap: _onTapBottomNav,
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      selectedItemColor: AppColors.primaryGreen,
-                      unselectedItemColor: AppColors.textSecondary,
-                      showUnselectedLabels: true,
-                      items: const [
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.home_rounded),
-                          label: 'Home',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.emoji_events_outlined),
-                          label: 'Rank',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.task_alt_outlined),
-                          label: 'Tasks',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.map_outlined),
-                          label: 'Map',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.storefront_outlined),
-                          label: 'Store',
-                        ),
-                      ],
                     ),
                   ),
                 ),
