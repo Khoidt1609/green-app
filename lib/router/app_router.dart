@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-
 import '../features/auth/views/login_screen.dart';
 import '../features/auth/views/onboarding_screen.dart';
 import '../features/auth/views/register_screen.dart';
-import '../features/home/views/home_screen.dart';
+import '../features/app_shell/app_shell.dart';
+import '../features/green_map/views/green_map_screen.dart';
+import '../features/leaderboard/views/leaderboard_screen.dart';
 import '../features/profile/views/profile_screen.dart';
 import '../features/tasks/views/task_list_screen.dart';
 
@@ -11,9 +12,13 @@ class AppRouter {
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String register = '/register';
+  static const String app = '/app';
   static const String home = '/home';
   static const String profile = '/profile';
   static const String tasks = '/tasks';
+  static const String leaderboard = '/leaderboard';
+  static const String greenMap = '/green-map';
+  static const String rewardWallet = '/reward-wallet';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -23,12 +28,26 @@ class AppRouter {
         );
       case register:
         return MaterialPageRoute<void>(builder: (_) => const RegisterScreen());
+      case app:
+        return MaterialPageRoute<void>(builder: (_) => const AppShell());
       case home:
-        return MaterialPageRoute<void>(builder: (_) => const HomeScreen());
+        return MaterialPageRoute<void>(builder: (_) => const AppShell());
       case profile:
         return MaterialPageRoute<void>(builder: (_) => const ProfileScreen());
       case tasks:
         return MaterialPageRoute<void>(builder: (_) => const TaskListScreen());
+      case leaderboard:
+        return MaterialPageRoute<void>(
+          builder: (_) => const LeaderboardScreen(),
+        );
+      case greenMap:
+        return MaterialPageRoute<void>(
+          builder: (_) => const GreenMapScreen(),
+        );
+      case rewardWallet:
+        return MaterialPageRoute<void>(
+          builder: (_) => const AppShell(),
+        );
       case login:
       default:
         return MaterialPageRoute<void>(builder: (_) => const LoginScreen());
