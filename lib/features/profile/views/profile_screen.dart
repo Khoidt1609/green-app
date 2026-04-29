@@ -30,6 +30,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   bool _isSaving = false;
   bool _isLoading = true;
+  int _currentTab = 0;
 
   String? _avatarUrl;
   int _totalPoints = 0;
@@ -186,25 +187,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 10),
                 Expanded(
                   child: GridView.builder(
-                  itemCount: _avatarGallery.length,
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemBuilder: (context, index) {
-                    final url = _avatarGallery[index];
-                    return InkWell(
-                      onTap: () => Navigator.of(context).pop(url),
-                      borderRadius: BorderRadius.circular(12),
-                      child: ClipRRect(
+                    itemCount: _avatarGallery.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    itemBuilder: (context, index) {
+                      final url = _avatarGallery[index];
+                      return InkWell(
+                        onTap: () => Navigator.of(context).pop(url),
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(url, fit: BoxFit.cover),
-                      ),
-                    );
-                  },
-                ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(url, fit: BoxFit.cover),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -237,10 +238,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return;
       }
 
-      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-        AppRouter.login,
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pushNamedAndRemoveUntil(AppRouter.login, (route) => false);
     } on AuthException catch (e) {
       if (!mounted) {
         return;
@@ -249,6 +250,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _onTapBottomNav(int index) {
+    if (_currentTab == index) {
+      return;
+    }
+
+    switch (index) {
+      case 0:
+        setState(() {
+          _currentTab = index;
+        });
+        Navigator.of(context).pushReplacementNamed(AppRouter.home);
+        break;
+      case 1:
+        break;
+      case 2:
+        setState(() {
+          _currentTab = index;
+        });
+        Navigator.of(context).pushReplacementNamed(AppRouter.tasks);
+        break;
+      case 3:
+        break;
+      case 4:
+        break;
+      default:
+        break;
     }
   }
 
@@ -266,8 +296,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? _nameController.text.trim()
         : displayUsername;
     final avatarInitial = displayUsername.isNotEmpty
-      ? displayUsername[0].toUpperCase()
-      : 'U';
+        ? displayUsername[0].toUpperCase()
+        : 'U';
 
     final weeklyProgress = ((_weeklyPoints / 600).clamp(0, 1)).toDouble();
 
@@ -405,7 +435,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [AppColors.primaryGreen, AppColors.primaryDarkGreen],
+                        colors: [
+                          AppColors.primaryGreen,
+                          AppColors.primaryDarkGreen,
+                        ],
                       ),
                     ),
                     child: Column(
@@ -451,7 +484,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: LinearProgressIndicator(
                             value: weeklyProgress,
                             minHeight: 8,
-                            backgroundColor: Colors.white.withValues(alpha: 0.3),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.3,
+                            ),
                             color: Colors.white,
                           ),
                         ),
@@ -461,7 +496,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 14),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceLight,
                       borderRadius: BorderRadius.circular(16),
@@ -530,6 +568,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.borderLight),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: _currentTab,
+          onTap: _onTapBottomNav,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: AppColors.primaryGreen,
+          unselectedItemColor: AppColors.textSecondary,
+          showUnselectedLabels: true,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.emoji_events_outlined),
+              label: 'Rank',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.task_alt_outlined),
+              label: 'Tasks',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.map_outlined),
+              label: 'Map',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.storefront_outlined),
+              label: 'Store',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -552,9 +637,7 @@ class _ProfileInfoRow extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Expanded(

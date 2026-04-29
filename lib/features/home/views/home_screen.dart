@@ -1,740 +1,769 @@
+// lib/features/home/views/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/providers/auth_providers.dart';
 import '../../../router/app_router.dart';
+import '../viewmodel/home_viewmodel.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _currentTab = 0;
-  bool _isLoadingProfile = true;
-  bool _isLoadingTasks = true;
-  Map<String, dynamic>? _profileData;
-  List<Map<String, dynamic>> _tasks = const <Map<String, dynamic>>[];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDashboardData();
-  }
-
-  Future<void> _loadDashboardData() async {
-    await Future.wait([_loadProfile(), _loadTasks()]);
-  }
-
-  Future<void> _loadProfile() async {
-    final authService = ref.read(authServiceProvider);
-    final data = await authService.getCurrentUserProfile();
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _profileData = data;
-      _isLoadingProfile = false;
-    });
-  }
-
-  Future<void> _openProfile() async {
-    await Navigator.of(context).pushNamed(AppRouter.profile);
-    await _loadDashboardData();
-  }
-
-  Future<void> _loadTasks() async {
-    final authService = ref.read(authServiceProvider);
-    final taskData = await authService.getCurrentUserTasks(limit: 3);
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _tasks = taskData;
-      _isLoadingTasks = false;
-    });
-  }
-
-  void _onTapBottomNav(int index) {
-    setState(() {
-      _currentTab = index;
-    });
-
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        break;
-      case 2:
-        Navigator.of(context).pushNamed(AppRouter.tasks);
-        break;
-      case 3:
-        break;
-      case 4:
-        break;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final authService = ref.watch(authServiceProvider);
-    
-    final fullName = (_profileData?['fullName'] as String?)?.trim();
-    final username = (_profileData?['username'] as String?)?.trim();
-    final emailPrefix = authService.currentUser?.email?.split('@').first.trim();
-    final displayName = (fullName != null && fullName.isNotEmpty)
-      ? fullName
-      : (username != null && username.isNotEmpty
-            ? username
-            : (emailPrefix != null && emailPrefix.isNotEmpty
-                  ? emailPrefix
-                  : 'user'));
-    final avatarInitial = (username != null && username.isNotEmpty)
-      ? username[0].toUpperCase()
-      : ((emailPrefix != null && emailPrefix.isNotEmpty)
-          ? emailPrefix[0].toUpperCase()
-          : 'U');
-
-    final totalPoints = (_profileData?['totalPoints'] as num?)?.toInt() ?? 0;
-    final weeklyPoints = (_profileData?['weeklyPoints'] as num?)?.toInt() ?? 0;
-    final monthlyPoints =
-      (_profileData?['monthlyPoints'] as num?)?.toInt() ?? 0;
-    final streakDays = (_profileData?['streakDays'] as num?)?.toInt() ?? 0;
-    final cityRank = (_profileData?['cityRank'] as num?)?.toInt();
-    final tasksDone = _tasks.where((task) => (task['done'] as bool?) ?? false).length;
-    final achievementItems =
-      (_profileData?['recentAchievements'] as List<dynamic>?) ??
-      const <dynamic>[];
-
-    final level = (totalPoints ~/ 1000) + 1;
-    final levelProgress = ((totalPoints % 1000) / 1000).clamp(0, 1).toDouble();
-    final weeklyProgress = (weeklyPoints / 600).clamp(0, 1).toDouble();
-    final monthlyProgress = (monthlyPoints / 2000).clamp(0, 1).toDouble();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(homeViewModelProvider);
+    final vm = ref.read(homeViewModelProvider.notifier);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1F14),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A160F), Color(0xFF102518), Color(0xFF0D1F14)],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: AppColors.backgroundLight,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: RefreshIndicator(
+              color: AppColors.primaryGreen,
+              onRefresh: vm.refresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Header ────────────────────────────────
+                      _HomeHeader(
+                        state: state,
+                        onProfileTap: () async {
+                          await Navigator.of(context)
+                              .pushNamed(AppRouter.profile);
+                          ref
+                              .read(homeViewModelProvider.notifier)
+                              .refresh();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Profile card ──────────────────────────
+                      if (state.isLoadingProfile)
+                        const _LoadingCard(height: 160)
+                      else
+                        _ProfileCard(state: state),
+                      const SizedBox(height: 10),
+
+                      // ── Stat badges ───────────────────────────
+                      _StatBadgeRow(state: state),
+                      const SizedBox(height: 12),
+
+                      // ── Quick actions ─────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _QuickActionTile(
+                              icon: Icons.camera_alt_outlined,
+                              label: 'Camera',
+                              tint: AppColors.primaryGreen,
+                              onTap: () =>
+                                  Navigator.of(context).pushNamed(AppRouter.tasks),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickActionTile(
+                              icon: Icons.card_giftcard_outlined,
+                              label: 'Store',
+                              tint: AppColors.accentOrange,
+                              onTap: () => Navigator.of(context)
+                                  .pushNamed(AppRouter.rewardWallet),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickActionTile(
+                              icon: Icons.location_on_outlined,
+                              label: 'Map',
+                              tint: AppColors.earthyBrown,
+                              onTap: () =>
+                                  Navigator.of(context).pushNamed(AppRouter.greenMap),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // ── Store banner ──────────────────────────
+                      _StoreBanner(totalPoints: state.totalPoints),
+                      const SizedBox(height: 18),
+
+                      // ── Recent tasks ──────────────────────────
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Nhiệm vụ gần đây',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () =>
+                                Navigator.of(context).pushNamed(AppRouter.tasks),
+                            child: Row(
                               children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Good Morning ☘',
-                                            style: TextStyle(
-                                              color: Color(0xAA86C89B),
-                                              fontSize: 12,
-                                              height: 1.1,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            displayName,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    _TopIconButton(
-                                      icon: Icons.notifications_none_rounded,
-                                      onTap: () {},
-                                    ),
-                                    const SizedBox(width: 8),
-                                    GestureDetector(
-                                      onTap: _openProfile,
-                                      child: Container(
-                                        width: 34,
-                                        height: 34,
-                                        decoration: BoxDecoration(
-                                          color: Colors.transparent,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          border: Border.all(
-                                            color: AppColors.primaryGreen,
-                                            width: 1.4,
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: CircleAvatar(
-                                            radius: 15,
-                                            backgroundColor:
-                                                AppColors.primaryGreen,
-                                            child: Text(
-                                              avatarInitial,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                if (_isLoadingProfile)
-                                  const SizedBox(
-                                    height: 140,
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        color: AppColors.primaryGreen,
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF102517),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: const Color(0xFF23412D),
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x1F000000),
-                                          blurRadius: 18,
-                                          offset: Offset(0, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 54,
-                                              height: 54,
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primaryGreen
-                                                    .withValues(alpha: 0.16),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                border: Border.all(
-                                                  color: AppColors.primaryGreen
-                                                      .withValues(alpha: 0.22),
-                                                ),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  avatarInitial,
-                                                  style: const TextStyle(
-                                                    color:
-                                                        AppColors.primaryGreen,
-                                                    fontSize: 20,
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    displayName,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      fontSize: 16,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  const Text(
-                                                    'Forest Guardian',
-                                                    style: TextStyle(
-                                                      color: Color(0xAA86C89B),
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            _MiniStatBadge(
-                                              title: 'Total Pts',
-                                              value: '$totalPoints',
-                                              accent: const Color(0xFFF6C945),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 14),
-                                        _ScoreLine(
-                                          label: 'Điểm tuần',
-                                          resetLabel: 'Reset Chủ nhật',
-                                          valueText: '$weeklyPoints',
-                                          totalText: '/600',
-                                          progress: weeklyProgress,
-                                          accent: AppColors.primaryGreen,
-                                          percentText:
-                                              '${(weeklyProgress * 100).round()}%',
-                                        ),
-                                        const SizedBox(height: 14),
-                                        _ScoreLine(
-                                          label: 'Điểm tháng',
-                                          resetLabel: 'Reset cuối tháng',
-                                          valueText: '$monthlyPoints',
-                                          totalText: '/2,000',
-                                          progress: monthlyProgress,
-                                          accent: const Color(0xFF58B8FF),
-                                          percentText:
-                                              '${(monthlyProgress * 100).round()}%',
-                                        ),
-                                        const SizedBox(height: 14),
-                                        Row(
-                                          children: [
-                                            const Expanded(
-                                              child: Text(
-                                                'Lv',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              '$level / ${(level * 1000)}',
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.76),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 6),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          child: LinearProgressIndicator(
-                                            value: levelProgress,
-                                            minHeight: 7,
-                                            backgroundColor: Colors.white
-                                                .withValues(alpha: 0.14),
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _HeaderStatCard(
-                                        icon: Icons.local_fire_department_outlined,
-                                        iconColor: const Color(0xFFFF7F50),
-                                        value: '${streakDays}d',
-                                        label: 'Streak',
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _HeaderStatCard(
-                                        icon: Icons.check_circle_outline,
-                                        iconColor: AppColors.primaryGreen,
-                                        value: '$tasksDone',
-                                        label: 'Tasks Done',
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _HeaderStatCard(
-                                        icon: Icons.star_border,
-                                        iconColor: const Color(0xFFF6C945),
-                                        value: cityRank != null ? '#$cityRank' : '--',
-                                        label: 'City Rank',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: const [
-                                    Expanded(
-                                      child: _QuickActionTile(
-                                        icon: Icons.camera_alt_outlined,
-                                        label: 'Camera',
-                                        tint: Color(0xFF16C46B),
-                                        background: Color(0xFF113725),
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      child: _QuickActionTile(
-                                        icon: Icons.card_giftcard_outlined,
-                                        label: 'Store',
-                                        tint: Color(0xFFE2C12A),
-                                        background: Color(0xFF2E2814),
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      child: _QuickActionTile(
-                                        icon: Icons.location_on_outlined,
-                                        label: 'Map',
-                                        tint: Color(0xFF44A8FF),
-                                        background: Color(0xFF123043),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: const Color(0xFF7E6A17),
-                                    ),
-                                    color: const Color(0xFF2A270D),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 42,
-                                        height: 42,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFD74C),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: const Icon(
-                                          Icons.card_giftcard_rounded,
-                                          color: Color(0xFF8A5A00),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Cửa Hàng Xanh',
-                                              style: TextStyle(
-                                                color: Color(0xFFF6C945),
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 15,
-                                              ),
-                                            ),
-                                            SizedBox(height: 4),
-                                            Text(
-                                              'Bạn có $totalPoints điểm để đổi quà.',
-                                              style: TextStyle(
-                                                color: Color(0xFF9BC5A2),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Icon(
-                                        Icons.chevron_right_rounded,
-                                        color: Color(0xFFF6C945),
-                                      ),
-                                    ],
+                                Text(
+                                  'Xem tất cả',
+                                  style: TextStyle(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(height: 18),
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'Nhiệm vụ hôm nay',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      'Xem tất cả',
-                                      style: TextStyle(
-                                        color: colorScheme.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.chevron_right_rounded,
-                                      size: 18,
-                                      color: AppColors.primaryGreen,
-                                    ),
-                                  ],
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: AppColors.primaryGreen,
                                 ),
-                                const SizedBox(height: 12),
-                                if (_isLoadingTasks)
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        color: AppColors.primaryGreen,
-                                      ),
-                                    ),
-                                  )
-                                else if (_tasks.isEmpty)
-                                  const _EmptyDashboardState(
-                                    message: 'Chưa có nhiệm vụ từ dữ liệu thật.',
-                                  )
-                                else
-                                  ..._tasks.asMap().entries.map((entry) {
-                                    final index = entry.key;
-                                    final task = entry.value;
-                                    final title =
-                                        (task['title'] as String?)?.trim();
-                                    final category =
-                                        (task['category'] as String?)?.trim();
-                                    final points =
-                                        (task['points'] as num?)?.toInt() ?? 0;
-                                    final dueLabel =
-                                        (task['dueLabel'] as String?)?.trim();
-                                    final done = (task['done'] as bool?) ?? false;
-
-                                    final accent = index == 0
-                                        ? const Color(0xFF1A5133)
-                                        : index == 1
-                                        ? const Color(0xFF183042)
-                                        : const Color(0xFF3A3012);
-
-                                    final iconColor = index == 0
-                                        ? const Color(0xFF40D890)
-                                        : index == 1
-                                        ? const Color(0xFF5FC4FF)
-                                        : const Color(0xFFFFD56A);
-
-                                    final icon = index == 0
-                                        ? Icons.recycling_outlined
-                                        : index == 1
-                                        ? Icons.pedal_bike_outlined
-                                        : Icons.lightbulb_outline;
-
-                                    final card = _TaskCard(
-                                      icon: icon,
-                                      iconColor: iconColor,
-                                      title: title != null && title.isNotEmpty
-                                          ? title
-                                          : 'Nhiệm vụ',
-                                      subtitle: category != null &&
-                                              category.isNotEmpty
-                                          ? category
-                                          : 'General',
-                                      timeLabel: dueLabel != null &&
-                                              dueLabel.isNotEmpty
-                                          ? dueLabel
-                                          : (done ? 'Done' : 'Today'),
-                                      points: done ? '✓' : '+$points',
-                                      accent: accent,
-                                    );
-
-                                    if (index == _tasks.length - 1) {
-                                      return card;
-                                    }
-
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 10),
-                                      child: card,
-                                    );
-                                  }),
-                                const SizedBox(height: 18),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF102517),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: const Color(0xFF23412D),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'THÀNH TÍCH GẦN ĐÂY',
-                                        style: TextStyle(
-                                          color: AppColors.primaryGreen,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.6,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      if (achievementItems.isEmpty)
-                                        const _EmptyDashboardState(
-                                          message:
-                                              'Chưa có thành tích từ dữ liệu thật.',
-                                        )
-                                      else
-                                        SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Row(
-                                            children: achievementItems
-                                                .asMap()
-                                                .entries
-                                                .map((entry) {
-                                                  final index = entry.key;
-                                                  final raw = entry.value;
-                                                  final map = raw is Map
-                                                      ? raw
-                                                      : <String, dynamic>{};
-                                                  final title =
-                                                      (map['title'] as String?)
-                                                              ?.trim() ??
-                                                          'Achievement';
-                                                  final subtitle = (map[
-                                                                  'subtitle']
-                                                              as String?)
-                                                          ?.trim() ??
-                                                      'User milestone';
-
-                                                  final tint = index % 3 == 0
-                                                      ? const Color(0xFF38D98C)
-                                                      : index % 3 == 1
-                                                      ? const Color(0xFF5FC4FF)
-                                                      : const Color(0xFFFFA24A);
-
-                                                  return Padding(
-                                                    padding: EdgeInsets.only(
-                                                      right: index ==
-                                                              achievementItems
-                                                                      .length -
-                                                                  1
-                                                          ? 0
-                                                          : 10,
-                                                    ),
-                                                    child: _AchievementCard(
-                                                      icon: index % 3 == 0
-                                                          ? Icons
-                                                                .recycling_outlined
-                                                          : index % 3 == 1
-                                                          ? Icons
-                                                                .pedal_bike_outlined
-                                                          : Icons
-                                                                .local_fire_department,
-                                                      title: title,
-                                                      subtitle: subtitle,
-                                                      tint: tint,
-                                                    ),
-                                                  );
-                                                })
-                                                .toList(growable: false),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
                               ],
                             ),
                           ),
-                        ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF102517),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: const Color(0xFF23412D),
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x22000000),
-                            blurRadius: 18,
-                            offset: Offset(0, 8),
-                          ),
                         ],
                       ),
-                      child: BottomNavigationBar(
-                        type: BottomNavigationBarType.fixed,
-                        currentIndex: _currentTab,
-                        onTap: _onTapBottomNav,
-                        backgroundColor: Colors.transparent,
-                        elevation: 0,
-                        selectedItemColor: AppColors.primaryGreen,
-                        unselectedItemColor: const Color(0xFF6C8471),
-                        showUnselectedLabels: true,
-                        items: const [
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.home_rounded),
-                            label: 'Home',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.emoji_events_outlined),
-                            label: 'Rank',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.task_alt_outlined),
-                            label: 'Tasks',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.map_outlined),
-                            label: 'Map',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.storefront_outlined),
-                            label: 'Store',
-                          ),
-                        ],
+                      const SizedBox(height: 12),
+
+                      if (state.isLoadingTasks)
+                        const _LoadingCard(height: 80)
+                      else if (state.recentTasks.isEmpty)
+                        _EmptyState(
+                          message: 'Chưa có nhiệm vụ nào. Bắt đầu hành động xanh ngay!',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed(AppRouter.tasks),
+                        )
+                      else
+                        ...state.recentTasks.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final task = entry.value;
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: i < state.recentTasks.length - 1 ? 10 : 0,
+                            ),
+                            child: _TaskCard(task: task, index: i),
+                          );
+                        }),
+
+                      const SizedBox(height: 18),
+
+                      // ── Achievements ──────────────────────────
+                      _AchievementSection(
+                        achievements: state.recentAchievements,
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Header ────────────────────────────────────────────────────────────────────
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
+    required this.state,
+    required this.onProfileTap,
+  });
+
+  final HomeState state;
+  final VoidCallback onProfileTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Good Morning ☘',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                state.displayName.isEmpty ? 'Người dùng' : state.displayName,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        _TopIconButton(
+          icon: Icons.notifications_none_rounded,
+          onTap: () {},
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onProfileTap,
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.primaryGreen,
+                width: 1.4,
+              ),
+            ),
+            child: Center(
+              child: CircleAvatar(
+                radius: 15,
+                backgroundColor: AppColors.primaryGreen,
+                child: Text(
+                  state.avatarInitial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Profile Card ───────────────────────────────────────────────────────────────
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({required this.state});
+
+  final HomeState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    state.avatarInitial,
+                    style: const TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.displayName,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Level ${state.level} · GreenStep',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _MiniStatBadge(
+                title: 'Total Pts',
+                value: '${state.totalPoints}',
+                accent: AppColors.primaryDarkGreen,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _ScoreLine(
+            label: 'Điểm tuần',
+            resetLabel: 'Reset Chủ nhật',
+            valueText: '${state.weekPoints}',
+            totalText: '/600',
+            progress: state.weekProgress,
+            accent: AppColors.primaryGreen,
+            percentText: '${(state.weekProgress * 100).round()}%',
+          ),
+          const SizedBox(height: 14),
+          _ScoreLine(
+            label: 'Điểm tháng',
+            resetLabel: 'Reset cuối tháng',
+            valueText: '${state.monthPoints}',
+            totalText: '/2.000',
+            progress: state.monthProgress,
+            accent: AppColors.earthyBrown,
+            percentText: '${(state.monthProgress * 100).round()}%',
+          ),
+          const SizedBox(height: 14),
+          // Level progress
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Level',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '${state.totalPoints % 1000} / 1.000 pts',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: state.levelProgress,
+              minHeight: 7,
+              backgroundColor: AppColors.surfaceMutedLight,
+              color: AppColors.primaryGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Stat Badges ───────────────────────────────────────────────────────────────
+
+class _StatBadgeRow extends StatelessWidget {
+  const _StatBadgeRow({required this.state});
+
+  final HomeState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _HeaderStatCard(
+            icon: Icons.local_fire_department_outlined,
+            iconColor: AppColors.accentOrange,
+            value: '${state.streakDays}d',
+            label: 'Streak',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HeaderStatCard(
+            icon: Icons.check_circle_outline,
+            iconColor: AppColors.primaryGreen,
+            value: '${state.tasksDoneCount}',
+            label: 'Tasks Done',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HeaderStatCard(
+            icon: Icons.star_border,
+            iconColor: AppColors.earthyBrown,
+            value: state.cityRank != null ? '#${state.cityRank}' : '--',
+            label: 'City Rank',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Store Banner ───────────────────────────────────────────────────────────────
+
+class _StoreBanner extends StatelessWidget {
+  const _StoreBanner({required this.totalPoints});
+
+  final int totalPoints;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderLight),
+        color: AppColors.surfaceLight,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.card_giftcard_rounded,
+              color: AppColors.primaryGreen,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cửa Hàng Xanh',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Bạn có $totalPoints điểm để đổi quà.',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.primaryGreen,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Recent Task Card ───────────────────────────────────────────────────────────
+
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.task, required this.index});
+
+  final Map<String, dynamic> task;
+  final int index;
+
+  static const _icons = [
+    Icons.recycling_outlined,
+    Icons.pedal_bike_outlined,
+    Icons.lightbulb_outline,
+  ];
+
+  static const _iconColors = [
+    AppColors.primaryGreen,
+    AppColors.primaryDarkGreen,
+    AppColors.accentOrange,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final title = (task['title'] as String?) ?? 'Nhiệm vụ';
+    final category = (task['category'] as String?) ?? 'General';
+    final points = (task['points'] as int?) ?? 0;
+    final dueLabel = (task['dueLabel'] as String?) ?? 'Hôm nay';
+    final done = (task['done'] as bool?) ?? false;
+
+    final iconColor = _iconColors[index % _iconColors.length];
+    final icon = _icons[index % _icons.length];
+    final accent = index == 1
+        ? AppColors.surfaceMutedLight
+        : AppColors.surfaceLight;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: iconColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.schedule_outlined,
+                      size: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      dueLabel,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                done ? '✓' : '+$points',
+                style: const TextStyle(
+                  color: AppColors.primaryGreen,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Text(
+                'pts',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Achievement Section ────────────────────────────────────────────────────────
+
+class _AchievementSection extends StatelessWidget {
+  const _AchievementSection({required this.achievements});
+
+  final List<Map<String, dynamic>> achievements;
+
+  static const _tints = [
+    AppColors.primaryGreen,
+    AppColors.primaryDarkGreen,
+    AppColors.earthyBrown,
+  ];
+
+  static const _icons = [
+    Icons.recycling_outlined,
+    Icons.pedal_bike_outlined,
+    Icons.local_fire_department,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'THÀNH TÍCH GẦN ĐÂY',
+            style: TextStyle(
+              color: AppColors.primaryGreen,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (achievements.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMutedLight,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: const Text(
+                'Hoàn thành nhiệm vụ để mở khóa thành tích! 🌱',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: achievements.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final item = entry.value;
+                  final tint = _tints[i % _tints.length];
+                  final icon = _icons[i % _icons.length];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: i < achievements.length - 1 ? 10 : 0,
+                    ),
+                    child: _AchievementCard(
+                      icon: icon,
+                      title: (item['title'] as String?) ?? 'Achievement',
+                      subtitle:
+                          (item['subtitle'] as String?) ?? 'User milestone',
+                      tint: tint,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared small widgets ───────────────────────────────────────────────────────
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryGreen),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.message, this.onTap});
+
+  final String message;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceMutedLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            if (onTap != null)
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppColors.primaryGreen,
+              ),
+          ],
         ),
       ),
     );
@@ -751,13 +780,13 @@ class _TopIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF153726),
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2A5A3D)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: IconButton(
         onPressed: onTap,
-        icon: Icon(icon, color: const Color(0xFFB4D8BE)),
+        icon: Icon(icon, color: AppColors.textSecondary),
       ),
     );
   }
@@ -781,9 +810,9 @@ class _HeaderStatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF102517),
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF23412D)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -802,7 +831,7 @@ class _HeaderStatCard extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF6D846F),
+              color: AppColors.textSecondary,
               fontSize: 11,
             ),
           ),
@@ -847,7 +876,7 @@ class _MiniStatBadge extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Color(0xFF9BC5A2),
+              color: AppColors.textSecondary,
               fontSize: 11,
             ),
           ),
@@ -885,14 +914,14 @@ class _ScoreLine extends StatelessWidget {
           children: [
             const Icon(
               Icons.calendar_month_outlined,
-              color: Color(0xFFB7D7BF),
+              color: AppColors.textSecondary,
               size: 14,
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
               ),
@@ -901,7 +930,7 @@ class _ScoreLine extends StatelessWidget {
             Text(
               resetLabel,
               style: const TextStyle(
-                color: Color(0xFF7F9E86),
+                color: AppColors.textSecondary,
                 fontSize: 11,
               ),
             ),
@@ -917,7 +946,7 @@ class _ScoreLine extends StatelessWidget {
             Text(
               totalText,
               style: const TextStyle(
-                color: Color(0xFF6D846F),
+                color: AppColors.textSecondary,
                 fontSize: 13,
               ),
             ),
@@ -929,7 +958,7 @@ class _ScoreLine extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 8,
-            backgroundColor: const Color(0xFF1A3424),
+            backgroundColor: AppColors.surfaceMutedLight,
             color: accent,
           ),
         ),
@@ -939,7 +968,7 @@ class _ScoreLine extends StatelessWidget {
           child: Text(
             percentText,
             style: const TextStyle(
-              color: Color(0xFF7FD29D),
+              color: AppColors.primaryDarkGreen,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -955,23 +984,24 @@ class _QuickActionTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.tint,
-    required this.background,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final Color tint;
-  final Color background;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         height: 84,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: background,
+          color: AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: tint.withValues(alpha: 0.24)),
         ),
@@ -990,133 +1020,6 @@ class _QuickActionTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyDashboardState extends StatelessWidget {
-  const _EmptyDashboardState({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF122A1C),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF23412D)),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(color: Color(0xFF8AB89A), fontSize: 12),
-      ),
-    );
-  }
-}
-
-class _TaskCard extends StatelessWidget {
-  const _TaskCard({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.timeLabel,
-    required this.points,
-    required this.accent,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String timeLabel;
-  final String points;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: accent,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF23412D)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF8AB89A),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.schedule_outlined,
-                      size: 12,
-                      color: Color(0xFF678B73),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      timeLabel,
-                      style: const TextStyle(
-                        color: Color(0xFF678B73),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                points,
-                style: const TextStyle(
-                  color: AppColors.primaryGreen,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Text(
-                'pts',
-                style: TextStyle(color: Color(0xFF678B73), fontSize: 11),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -1141,7 +1044,7 @@ class _AchievementCard extends StatelessWidget {
       width: 132,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF122B1D),
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: tint.withValues(alpha: 0.3)),
       ),
@@ -1162,7 +1065,7 @@ class _AchievementCard extends StatelessWidget {
           Text(
             subtitle,
             style: const TextStyle(
-              color: Color(0xFF7E9D85),
+              color: AppColors.textSecondary,
               fontSize: 11,
             ),
           ),

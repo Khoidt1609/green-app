@@ -60,14 +60,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _onGooglePressed() async {
-    final error = await ref.read(authViewModelProvider.notifier).loginWithGoogle();
+    final error = await ref
+        .read(authViewModelProvider.notifier)
+        .loginWithGoogle();
 
     if (!mounted) {
       return;
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -77,7 +81,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
 
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+  }
+
+  Future<void> _onForgotPasswordPressed() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nhập email hoặc tên đăng nhập trước khi khôi phục.'),
+        ),
+      );
+      return;
+    }
+
+    final error = await ref
+        .read(authViewModelProvider.notifier)
+        .forgotPassword(email: email);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã gửi email khôi phục mật khẩu. Hãy kiểm tra hộp thư.'),
+      ),
+    );
+
+    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -91,7 +132,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           gradient: RadialGradient(
             center: Alignment(-0.9, -0.95),
             radius: 1.4,
-            colors: [AppColors.primaryDarkGreen, AppColors.backgroundDark],
+            colors: [Color(0xFFEAF7F0), AppColors.backgroundLight],
           ),
         ),
         child: SafeArea(
@@ -104,14 +145,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   constraints: const BoxConstraints(maxWidth: 440),
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                    color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                      color: AppColors.borderLight,
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x50000000),
+                        color: Color(0x12000000),
                         blurRadius: 24,
                         offset: Offset(0, 10),
                       ),
@@ -154,7 +195,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         'Đăng nhập',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.w800,
                           fontSize: 36,
                         ),
@@ -172,11 +213,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                          color: AppColors.surfaceMutedLight,
                           border: Border.all(
-                            color: AppColors.primaryGreen.withValues(
-                              alpha: 0.25,
-                            ),
+                            color: AppColors.borderLight,
                           ),
                         ),
                         child: const Row(
@@ -190,7 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: Text(
                                 'Earn-to-Reward Cycle\nHành động xanh -> Điểm thưởng -> Bảng xếp hạng -> Nhận tiền mặt',
                                 style: TextStyle(
-                                  color: AppColors.textSecondary,
+                                  color: AppColors.textPrimary,
                                   fontSize: 12,
                                   height: 1.3,
                                 ),
@@ -201,7 +240,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Email',
+                        'Email hoặc tên đăng nhập',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 13,
@@ -210,14 +249,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 6),
                       _AuthField(
                         controller: _emailController,
-                        hint: 'email@example.com',
+                        hint: 'email@example.com hoặc minhnguyen',
                         prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Vui lòng nhập email';
+                            return 'Vui lòng nhập email hoặc tên đăng nhập';
                           }
-                          if (!value.contains('@')) {
+                          if (value.contains('@') && !value.contains('.')) {
                             return 'Email không hợp lệ';
                           }
                           return null;
@@ -266,7 +305,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: isLoading
+                              ? null
+                              : _onForgotPasswordPressed,
                           child: const Text('Quên mật khẩu?'),
                         ),
                       ),
@@ -314,12 +355,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           Expanded(
                             child: Divider(
-                              color: AppColors.primaryGreen.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.borderLight,
                             ),
                           ),
-                          Padding(
+                          const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'hoặc',
@@ -328,9 +367,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           Expanded(
                             child: Divider(
-                              color: AppColors.primaryGreen.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.borderLight,
                             ),
                           ),
                         ],
@@ -341,11 +378,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           side: BorderSide(
-                            color: AppColors.primaryGreen.withValues(
-                              alpha: 0.35,
-                            ),
+                            color: AppColors.primaryGreen.withValues(alpha: 0.35),
                           ),
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.primaryDarkGreen,
                         ),
                         icon: const Icon(Icons.g_mobiledata_rounded),
                         label: const Text(
@@ -414,7 +449,7 @@ class _AuthField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.textSecondary),
@@ -424,17 +459,17 @@ class _AuthField extends StatelessWidget {
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: AppColors.primaryGreen.withValues(alpha: 0.08),
+        fillColor: AppColors.surfaceLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         focusedBorder: OutlineInputBorder(

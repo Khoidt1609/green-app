@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -19,11 +20,10 @@ class AuthService {
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
     GoogleSignIn? googleSignIn,
-  })
-      : _authOverride = auth,
-        _firestoreOverride = firestore,
-        _storageOverride = storage,
-        _googleSignInOverride = googleSignIn;
+  }) : _authOverride = auth,
+       _firestoreOverride = firestore,
+       _storageOverride = storage,
+       _googleSignInOverride = googleSignIn;
 
   final FirebaseAuth? _authOverride;
   final FirebaseFirestore? _firestoreOverride;
@@ -34,8 +34,7 @@ class AuthService {
   FirebaseFirestore get _firestore =>
       _firestoreOverride ?? FirebaseFirestore.instance;
   FirebaseStorage get _storage => _storageOverride ?? FirebaseStorage.instance;
-  GoogleSignIn get _googleSignIn =>
-      _googleSignInOverride ?? GoogleSignIn();
+  GoogleSignIn get _googleSignIn => _googleSignInOverride ?? GoogleSignIn();
 
   User? get currentUser => _auth.currentUser;
 
@@ -43,8 +42,9 @@ class AuthService {
 
   Future<void> signIn({required String email, required String password}) async {
     try {
+      final resolvedEmail = await _resolveLoginEmail(email);
       await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: resolvedEmail,
         password: password,
       );
     } on FirebaseAuthException catch (e) {
@@ -52,13 +52,76 @@ class AuthService {
     }
   }
 
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    final input = email.trim();
+    if (input.isEmpty) {
+      throw AuthException('Vui lòng nhập email để khôi phục mật khẩu.');
+    }
+
+    final resolvedEmail = await _resolveLoginEmail(input);
+    if (!resolvedEmail.contains('@')) {
+      throw AuthException('Vui lòng nhập đúng email đã đăng ký.');
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: resolvedEmail);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_mapPasswordResetError(e));
+    }
+  }
+
+  Future<String> _resolveLoginEmail(String input) async {
+    final value = input.trim();
+    if (value.isEmpty) {
+      return value;
+    }
+
+    if (value.contains('@')) {
+      return value;
+    }
+
+    final snapshot = await _firestore
+        .collection('users')
+        .where('username', isEqualTo: value)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return value;
+    }
+
+    final profileEmail = (snapshot.docs.first.data()['email'] as String?)
+        ?.trim();
+    if (profileEmail == null || profileEmail.isEmpty) {
+      return value;
+    }
+
+    return profileEmail;
+  }
+
   Future<void> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn
-          .signIn()
-          .timeout(const Duration(seconds: 30));
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider();
+        final userCredential = await _auth
+            .signInWithPopup(provider)
+            .timeout(const Duration(seconds: 30));
+
+        final user = userCredential.user;
+        if (user == null) {
+          throw AuthException('Không thể đăng nhập bằng Google.');
+        }
+
+        await _ensureGoogleProfile(user: user);
+        return;
+      }
+
+      // Native Android/iOS flow is more stable than browser-based provider flow.
+      final googleUser = await _googleSignIn.signIn().timeout(
+        const Duration(seconds: 30),
+      );
       if (googleUser == null) {
-        throw AuthException('Đăng nhập Google đã bị hủy.');
+        throw AuthException('Bạn đã hủy đăng nhập Google.');
       }
 
       final googleAuth = await googleUser.authentication.timeout(
@@ -77,15 +140,20 @@ class AuthService {
         throw AuthException('Không thể đăng nhập bằng Google.');
       }
 
-      await _ensureGoogleProfile(user, googleUser);
+      await _ensureGoogleProfile(user: user, googleUser: googleUser);
     } on TimeoutException {
       throw AuthException(
-        'Đăng nhập Google đang quá lâu. Hãy kiểm tra Internet, tài khoản Google trên máy ảo và thử lại.',
+        'Đăng nhập Google đang quá lâu. Hãy kiểm tra Internet và thử lại.',
       );
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on PlatformException catch (e) {
-      throw AuthException(_mapGoogleSignInError(e));
+      if (e.code == 'sign_in_failed' || e.code == '10') {
+        throw AuthException(
+          'Google Sign-In chưa cấu hình đúng. Hãy kiểm tra lại SHA-1/SHA-256 và tải lại google-services.json.',
+        );
+      }
+      throw AuthException('Đăng nhập Google thất bại (${e.code}).');
     } on Exception catch (e) {
       if (e is AuthException) {
         rethrow;
@@ -138,10 +206,10 @@ class AuthService {
     }
   }
 
-  Future<void> _ensureGoogleProfile(
-    User user,
-    GoogleSignInAccount googleUser,
-  ) async {
+  Future<void> _ensureGoogleProfile({
+    required User user,
+    GoogleSignInAccount? googleUser,
+  }) async {
     final profileRef = _firestore.collection('users').doc(user.uid);
     final snapshot = await profileRef.get();
 
@@ -149,9 +217,9 @@ class AuthService {
       await profileRef.set({
         'uid': user.uid,
         'email': user.email,
-        'fullName': user.displayName ?? googleUser.displayName ?? '',
+        'fullName': user.displayName ?? googleUser?.displayName ?? '',
         'username': _buildUsernameFromEmail(user.email) ?? '',
-        'avatarUrl': user.photoURL ?? googleUser.photoUrl,
+        'avatarUrl': user.photoURL ?? googleUser?.photoUrl,
         'provider': 'google',
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -161,11 +229,12 @@ class AuthService {
     await profileRef.set({
       'uid': user.uid,
       'email': user.email,
-      'fullName': user.displayName ?? googleUser.displayName ?? '',
-      'username': _buildUsernameFromEmail(user.email) ?? user.uid.substring(0, 8),
+      'fullName': user.displayName ?? googleUser?.displayName ?? '',
+      'username':
+          _buildUsernameFromEmail(user.email) ?? user.uid.substring(0, 8),
       'city': '',
       'district': '',
-      'avatarUrl': user.photoURL ?? googleUser.photoUrl,
+      'avatarUrl': user.photoURL ?? googleUser?.photoUrl,
       'createdAt': FieldValue.serverTimestamp(),
       'provider': 'google',
     });
@@ -274,10 +343,7 @@ class AuthService {
         'avatars/${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
 
-      await ref.putFile(
-        file,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
 
       return await ref.getDownloadURL();
     } on FirebaseException {
@@ -304,18 +370,18 @@ class AuthService {
     }
   }
 
-  String _mapGoogleSignInError(PlatformException e) {
+  String _mapPasswordResetError(FirebaseAuthException e) {
     switch (e.code) {
-      case 'sign_in_failed':
-      case 'ApiException: 10':
-      case '10':
-        return 'Google Sign-In chưa được cấu hình đúng trên Android. Hãy bật provider Google trong Firebase Auth, thêm SHA-1/SHA-256 cho app và tải lại google-services.json.';
-      case 'network_error':
-        return 'Lỗi mạng khi đăng nhập Google. Vui lòng kiểm tra Internet.';
-      case 'sign_in_canceled':
-        return 'Bạn đã hủy đăng nhập Google.';
+      case 'invalid-email':
+        return 'Email không hợp lệ.';
+      case 'user-not-found':
+        return 'Email chưa được đăng ký.';
+      case 'too-many-requests':
+        return 'Bạn thao tác quá nhiều lần. Vui lòng thử lại sau.';
+      case 'network-request-failed':
+        return 'Lỗi mạng. Vui lòng kiểm tra Internet.';
       default:
-        return 'Đăng nhập Google thất bại (${e.code}). Vui lòng thử lại.';
+        return 'Không thể gửi email khôi phục mật khẩu. Vui lòng thử lại.';
     }
   }
 }

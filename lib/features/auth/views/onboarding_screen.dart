@@ -76,8 +76,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment(-0.6, -0.8),
-            radius: 1.4,
-            colors: [AppColors.primaryDarkGreen, AppColors.backgroundDark],
+            radius: 1.5,
+            colors: [Color(0xFFEAF7F0), AppColors.backgroundLight],
           ),
         ),
         child: SafeArea(
@@ -90,8 +90,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: TextButton(
                     onPressed: _skip,
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primaryGreen,
-                      backgroundColor: Colors.white10,
+                      foregroundColor: AppColors.primaryDarkGreen,
+                      backgroundColor: Colors.white,
                     ),
                     child: const Text('Bỏ qua'),
                   ),
@@ -120,7 +120,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         borderRadius: BorderRadius.circular(100),
                         color: _index == dotIndex
                             ? AppColors.primaryGreen
-                            : AppColors.primaryGreen.withValues(alpha: 0.35),
+                          : AppColors.primaryGreen.withValues(alpha: 0.2),
                       ),
                     ),
                   ),
@@ -183,7 +183,7 @@ class _OnboardingPage extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppColors.primaryGreen.withValues(alpha: 0.2),
+                color: AppColors.primaryGreen.withValues(alpha: 0.18),
               ),
             ),
             child: Center(
@@ -195,7 +195,7 @@ class _OnboardingPage extends StatelessWidget {
             data.title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w800,
               fontSize: 44,
               height: 1.05,
@@ -205,17 +205,17 @@ class _OnboardingPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+              color: AppColors.primaryGreen.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.primaryGreen.withValues(alpha: 0.4),
+                color: AppColors.primaryGreen.withValues(alpha: 0.22),
               ),
             ),
             child: Text(
               data.badge,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: AppColors.primaryGreen,
+                color: AppColors.primaryDarkGreen,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),

@@ -1,143 +1,139 @@
+// lib/features/tasks/providers/submission_provider.dart
+
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../data/models/task_model.dart';
+
 import '../../../data/models/submission_model.dart';
-import 'dart:typed_data';
+import '../../../data/models/task_model.dart';
 
+// ── Providers ──────────────────────────────────────────────────────────────────
 
-// Quản lý file ảnh đang được chọn
-final pickedImagesProvider = StateProvider.autoDispose<List<File>>((ref) => []);
+/// Danh sách file ảnh đang chọn (tự reset khi sheet đóng)
+final pickedImagesProvider =
+    StateProvider.autoDispose<List<File>>((ref) => []);
 
-// Quản lý trạng thái loading khi đang upload
-final submissionLoadingProvider = StateProvider.autoDispose<bool>((ref) => false);
+/// Trạng thái đang upload / submit
+final submissionLoadingProvider =
+    StateProvider.autoDispose<bool>((ref) => false);
 
-// Provider chính để thao tác
-final submissionServiceProvider = Provider.autoDispose((ref) => SubmissionService(ref));
+/// Service chính để thao tác ảnh & nộp bài
+final submissionServiceProvider =
+    Provider.autoDispose((ref) => SubmissionService(ref));
+
+// ── Cloudinary config ──────────────────────────────────────────────────────────
+
+const _cloudName = 'dfvtfibtx';
+const _uploadPreset = 'greenstep_preset';
+const _cloudinaryUrl =
+    'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
+
+// ── SubmissionService ──────────────────────────────────────────────────────────
 
 class SubmissionService {
-  final Ref ref;
+  SubmissionService(this._ref);
 
-  SubmissionService(this.ref);
+  final Ref _ref;
+  final _picker = ImagePicker();
+  final _dio = Dio();
 
-  final ImagePicker _picker = ImagePicker();
+  // ── Pick images ─────────────────────────────────────────────────────────────
 
-  // Mở Camera hoặc Bộ sưu tập
   Future<void> pickImage(ImageSource source) async {
     if (source == ImageSource.camera) {
-      final XFile? photo = await _picker.pickImage(
-          source: source, imageQuality: 60);
-      if (photo != null) {
-        final currentImages = ref.read(pickedImagesProvider);
-        ref
-            .read(pickedImagesProvider.notifier)
-            .state = [...currentImages, File(photo.path)];
-      }
+      final photo =
+          await _picker.pickImage(source: source, imageQuality: 60);
+      if (photo == null) return;
+      _appendImages([File(photo.path)]);
     } else {
-      final List<XFile> images = await _picker.pickMultiImage(imageQuality: 60);
-      if (images.isNotEmpty) {
-        final currentImages = ref.read(pickedImagesProvider);
-        ref
-            .read(pickedImagesProvider.notifier)
-            .state = [
-          ...currentImages,
-          ...images.map((img) => File(img.path))
-        ];
-      }
+      final images = await _picker.pickMultiImage(imageQuality: 60);
+      if (images.isEmpty) return;
+      _appendImages(images.map((x) => File(x.path)).toList());
     }
   }
 
-  void removeImage(int index) {
-    final currentImages = [...ref.read(pickedImagesProvider)];
-    currentImages.removeAt(index);
-    ref
-        .read(pickedImagesProvider.notifier)
-        .state = currentImages;
+  void _appendImages(List<File> newFiles) {
+    final current = _ref.read(pickedImagesProvider);
+    _ref.read(pickedImagesProvider.notifier).state = [
+      ...current,
+      ...newFiles,
+    ];
   }
 
-  // Xử lý Upload và Lưu Database
+  void removeImage(int index) {
+    final current = [..._ref.read(pickedImagesProvider)];
+    current.removeAt(index);
+    _ref.read(pickedImagesProvider.notifier).state = current;
+  }
+
+  // ── Submit task ─────────────────────────────────────────────────────────────
+
   Future<bool> submitTask(TaskModel task, String note) async {
-    // [GIAI ĐOẠN 1]: KIỂM TRA ĐẦU VÀO
-    final images = ref.read(pickedImagesProvider);
+    final images = _ref.read(pickedImagesProvider);
     if (images.isEmpty) return false;
 
-    // Kích hoạt vòng xoay Loading trên UI
-    ref.read(submissionLoadingProvider.notifier).state = true;
+    _setLoading(true);
 
     try {
-      // [GIAI ĐOẠN 2]: XÁC THỰC NGƯỜI DÙNG
-      User? currentUser = FirebaseAuth.instance.currentUser;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
 
-      // Fallback: Tự động cấp quyền nếu đang test mà chưa đăng nhập
-      if (currentUser == null) {
-        print(">>> Hệ thống: Đang cấp quyền ẩn danh để test...");
-        await FirebaseAuth.instance.signInAnonymously();
-        currentUser = FirebaseAuth.instance.currentUser;
-      }
+      // 1. Upload ảnh lên Cloudinary
+      final downloadUrls = await _uploadImages(images, user.uid);
 
-      // Đặt biến UID mặc định là tài khoản thật của Bin nếu chạy ẩn danh
-      String currentUid = currentUser?.uid ?? 'zX8uGGc0S0bItRhIsjppimhULdH2';
-      String currentEmail = currentUser?.email ?? 'bin05062006@gmail.com';
-      String currentName = currentUser?.displayName ?? 'Bin (bin05062006)';
-
-      // [GIAI ĐOẠN 3]: UPLOAD ẢNH (Bảo mật 404)
-      List<String> downloadUrls = [];
-
-      for (int i = 0; i < images.length; i++) {
-        // Tạo đường dẫn riêng biệt cho từng ảnh của user
-        String fileName = 'submissions/$currentUid/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-        Reference refStorage = FirebaseStorage.instance.ref().child(fileName);
-
-        // THUẬT TOÁN BĂM BYTE: Ép máy ảo đọc file vật lý trước khi đẩy
-        Uint8List fileBytes = await images[i].readAsBytes();
-
-        print(">>> Đang đẩy ảnh $i lên máy chủ...");
-        TaskSnapshot snapshot = await refStorage.putData(fileBytes);
-
-        // Chỉ lấy link khi hệ thống xác nhận đã lưu xong 100%
-        String url = await snapshot.ref.getDownloadURL();
-        downloadUrls.add(url);
-      }
-
-      // [GIAI ĐOẠN 4]: ĐÓNG GÓI VÀ LƯU DATABASE GỐC
+      // 2. Lưu submission vào Firestore
       final submission = SubmissionModel(
         id: '',
-        userId: currentUid,
-        userName: currentName,
+        userId: user.uid,
+        userName: user.displayName ??
+            user.email?.split('@').first ??
+            'Người dùng GreenStep',
         taskId: task.id,
         taskTitle: task.title,
-        proofUrls: downloadUrls, // Mảng chứa các link ảnh đã upload
+        proofUrls: downloadUrls,
         pointsReward: task.pointsReward,
         createdAt: DateTime.now(),
       );
 
-      // Chuyển Model thành Map để chuẩn bị lưu
-      Map<String, dynamic> dataToSave = submission.toMap();
+      final data = submission.toMap()
+        ..['userNote'] = note.trim()
+        ..['userEmail'] = user.email ?? '';
 
-      // Bổ sung các trường Extra theo thiết kế ban đầu của bạn
-      dataToSave['userNote'] = note;
-      dataToSave['userEmail'] = currentEmail;
+      await FirebaseFirestore.instance.collection('submissions').add(data);
 
-      // Thực thi lưu vào Firestore
-      print("Đang ghi nhận dữ liệu vào CSDL...");
-      await FirebaseFirestore.instance.collection('submissions').add(dataToSave);
-
-      print("HOÀN TẤT: Nhiệm vụ cuối cùng đã thành công rực rỡ!");
-
-      // Dọn dẹp RAM: Xóa ảnh đã chọn trên màn hình
-      ref.read(pickedImagesProvider.notifier).state = [];
+      // 3. Reset ảnh đã chọn
+      _ref.read(pickedImagesProvider.notifier).state = [];
       return true;
-
-    } catch (e) {
-      // báo đỏ về UI
-      print("LỖI HỆ THỐNG CRITICAL: $e");
+    } catch (_) {
       return false;
     } finally {
-      // Luôn tắt vòng xoay Loading dù kết quả ra sao
-      ref.read(submissionLoadingProvider.notifier).state = false;
+      _setLoading(false);
     }
+  }
+
+  Future<List<String>> _uploadImages(
+      List<File> images, String uid) async {
+    final urls = <String>[];
+    for (final image in images) {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(image.path),
+        'upload_preset': _uploadPreset,
+        'folder': 'greenstep/submissions/$uid',
+      });
+      final response = await _dio.post(_cloudinaryUrl, data: formData);
+      if (response.statusCode == 200) {
+        final url = response.data['secure_url'] as String?;
+        if (url != null) urls.add(url);
+      }
+    }
+    return urls;
+  }
+
+  void _setLoading(bool value) {
+    _ref.read(submissionLoadingProvider.notifier).state = value;
   }
 }

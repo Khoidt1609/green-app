@@ -80,7 +80,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           gradient: RadialGradient(
             center: Alignment(-0.9, -0.95),
             radius: 1.4,
-            colors: [AppColors.primaryDarkGreen, AppColors.backgroundDark],
+            colors: [Color(0xFFEAF7F0), AppColors.backgroundLight],
           ),
         ),
         child: SafeArea(
@@ -93,14 +93,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   constraints: const BoxConstraints(maxWidth: 440),
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                   decoration: BoxDecoration(
-                    color: const Color(0x1406D27E),
+                    color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                      color: AppColors.borderLight,
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x50000000),
+                        color: Color(0x12000000),
                         blurRadius: 24,
                         offset: Offset(0, 10),
                       ),
@@ -157,7 +157,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         'Tạo tài khoản',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.w800,
                           fontSize: 36,
                         ),
@@ -373,12 +373,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         children: [
                           Expanded(
                             child: Divider(
-                              color: AppColors.primaryGreen.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.borderLight,
                             ),
                           ),
-                          Padding(
+                          const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'hoặc',
@@ -387,9 +385,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           Expanded(
                             child: Divider(
-                              color: AppColors.primaryGreen.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.borderLight,
                             ),
                           ),
                         ],
@@ -410,11 +406,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           side: BorderSide(
-                            color: AppColors.primaryGreen.withValues(
-                              alpha: 0.35,
-                            ),
+                            color: AppColors.primaryGreen.withValues(alpha: 0.35),
                           ),
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.primaryDarkGreen,
                         ),
                         icon: const Icon(Icons.lock_open_rounded),
                         label: const Text(
@@ -483,7 +477,7 @@ class _RegisterField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.textSecondary),
@@ -493,17 +487,17 @@ class _RegisterField extends StatelessWidget {
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: AppColors.primaryGreen.withValues(alpha: 0.08),
+        fillColor: AppColors.surfaceLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: AppColors.primaryGreen.withValues(alpha: 0.25),
+          borderSide: const BorderSide(
+            color: AppColors.borderLight,
           ),
         ),
         focusedBorder: OutlineInputBorder(

@@ -25,6 +25,7 @@ class SubmissionModel {
     required this.createdAt,
   });
 
+  // FIX: tên param đổi từ pointReward → pointsReward cho khớp field
   SubmissionModel copyWith({
     String? id,
     String? userId,
@@ -32,7 +33,7 @@ class SubmissionModel {
     String? taskTitle,
     String? userName,
     List<String>? proofUrls,
-    int? pointReward,
+    int? pointsReward,
     String? status,
     String? adminNote,
     DateTime? createdAt,
@@ -61,27 +62,25 @@ class SubmissionModel {
       'pointsReward': pointsReward,
       'status': status,
       'adminNote': adminNote,
-      // Chuyển DateTime của app thành Timestamp của Firebase
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 
+  // FIX: xóa print() debug
   factory SubmissionModel.fromDocument(DocumentSnapshot doc) {
-    print("Đang đọc document ID: ${doc.id}");
     final map = doc.data() as Map<String, dynamic>? ?? {};
     return SubmissionModel(
       id: doc.id,
-      userId: map['userId'] ?? '',
-      taskId: map['taskId'] ?? '',
-      taskTitle: map['taskTitle'] ?? '',
-      userName: map['userName'] ?? '',
-      // Ép kiểu mảng an toàn từ Firebase
-      proofUrls: List<String>.from(map['proofUrls'] ?? []),
-      pointsReward: map['pointsReward'] ?? 0,
-      status: map['status'] ?? 'pending',
-      adminNote: map['adminNote'],
-      // Chuyển Timestamp của Firebase thành DateTime cho app dễ dùng
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      userId: map['userId'] as String? ?? '',
+      taskId: map['taskId'] as String? ?? '',
+      taskTitle: map['taskTitle'] as String? ?? '',
+      userName: map['userName'] as String? ?? '',
+      proofUrls: List<String>.from(map['proofUrls'] as List? ?? []),
+      pointsReward: (map['pointsReward'] as num?)?.toInt() ?? 0,
+      status: map['status'] as String? ?? 'pending',
+      adminNote: map['adminNote'] as String?,
+      createdAt:
+          (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 }
