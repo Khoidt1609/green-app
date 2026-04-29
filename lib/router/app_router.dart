@@ -32,7 +32,7 @@ class AppRouter {
         return MaterialPageRoute<void>(builder: (_) => const TaskListScreen());
       case login:
       default:
-        return MaterialPageRoute<void>(builder: (_) => const LoginScreen());
+        return MaterialPageRoute<void>(builder: (_) => const AdminMainScreen());
     }
   }
 }
