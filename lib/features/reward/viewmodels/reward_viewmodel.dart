@@ -7,7 +7,7 @@ import '../../../data/models/transaction_model.dart'; // FIX: dùng TransactionM
 import '../../../data/repositories/reward_repository.dart';
 
 class RewardState {
-  final List<RewardItem> rewards;
+  final List<RewardModel> rewards;
   final List<TransactionModel> transactions; // FIX: TransactionRecord → TransactionModel
   final bool isLoading;
   final bool isRedeeming;
@@ -32,7 +32,7 @@ class RewardState {
   });
 
   RewardState copyWith({
-    List<RewardItem>? rewards,
+    List<RewardModel>? rewards,
     List<TransactionModel>? transactions,
     bool? isLoading,
     bool? isRedeeming,
@@ -105,7 +105,7 @@ class RewardViewModel extends StateNotifier<RewardState> {
         _repo.getTransactions(),
       ]);
       state = state.copyWith(
-        rewards: results[0] as List<RewardItem>,
+        rewards: results[0] as List<RewardModel>,
         transactions: results[1] as List<TransactionModel>,
         isLoading: false,
       );
@@ -120,7 +120,7 @@ class RewardViewModel extends StateNotifier<RewardState> {
   Future<void> refresh() => _loadData();
 
   Future<bool> redeemReward({
-    required RewardItem reward,
+    required RewardModel reward,
     required String bankCode,
     required String accountNo,
     required String accountName,

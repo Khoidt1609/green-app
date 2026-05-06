@@ -1,7 +1,7 @@
-// lib/features/admin/views/admin_main_screen.dart
 import 'package:flutter/material.dart';
 import 'package:green_app/core/constants/app_colors.dart';
 import 'package:green_app/core/constants/app_text_styles.dart';
+import 'package:green_app/features/admin/views/admin_finance_screen.dart';
 import 'package:green_app/features/admin/views/admin_tasks_tab.dart';
 import 'package:green_app/features/admin/views/admin_transaction_tab.dart';
 import 'admin_submissions_tab.dart'; // Tab mình sẽ vẽ chi tiết bên dưới
@@ -20,12 +20,13 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     const AdminSubmissionsTab(), // Tab Duyệt bài
     const AdminTasksTab(),
     const Center(child: Text("Quản lý Users")),
-    const AdminTransactionsTab(),
+    const AdminFinanceScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         backgroundColor: AppColors.primaryDarkGreen,
         title: Row(
@@ -67,7 +68,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.payments),
-            label: "Rút tiền",
+            label: "Tài chính",
           ),
         ],
       ),

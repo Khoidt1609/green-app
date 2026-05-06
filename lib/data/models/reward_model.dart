@@ -5,7 +5,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class RewardItem {
+class RewardModel {
   final String id;
   final String name;
   final String description;
@@ -13,8 +13,9 @@ class RewardItem {
   final int valueVND;
   final String type; // 'cash' | 'voucher'
   final String? imageUrl;
+  final bool? isActive;
 
-  const RewardItem({
+  const RewardModel({
     required this.id,
     required this.name,
     required this.description,
@@ -22,11 +23,12 @@ class RewardItem {
     required this.valueVND,
     required this.type,
     this.imageUrl,
+    this.isActive = true,
   });
 
-  factory RewardItem.fromDoc(DocumentSnapshot doc) {
+  factory RewardModel.fromDoc(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
-    return RewardItem(
+    return RewardModel(
       id: doc.id,
       name: d['name'] as String? ?? '',
       description: d['description'] as String? ?? '',
@@ -34,8 +36,21 @@ class RewardItem {
       valueVND: (d['valueVND'] as num?)?.toInt() ?? 0,
       type: d['type'] as String? ?? 'cash',
       imageUrl: d['imageUrl'] as String?,
+      isActive: d['isActive'] ?? true,
     );
   }
 
   bool get isCash => type == 'cash';
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'description': description,
+      'pointCost': pointCost,
+      'valueVND': valueVND,
+      'type': type,
+      'imageUrl': imageUrl,
+      'isActive': isActive,
+    };
+  }
 }

@@ -320,7 +320,7 @@ class _RewardListTab extends StatelessWidget {
 
   void _showRedeemSheet(
     BuildContext context,
-    RewardItem reward,
+      RewardModel reward,
     RewardState state,
     RewardViewModel vm,
   ) {
@@ -358,7 +358,7 @@ class _RewardCard extends StatelessWidget {
     required this.onRedeem,
     this.savedBankInfo,
   });
-  final RewardItem reward;
+  final RewardModel reward;
   final bool canAfford;
   final bool isRedeeming;
   final VoidCallback onRedeem;
@@ -502,7 +502,7 @@ class _RedeemSheet extends StatefulWidget {
     required this.onConfirm,
     this.savedBankInfo,
   });
-  final RewardItem reward;
+  final RewardModel reward;
   final bool isRedeeming;
   final int currentPoints;
   final Map<String, String>? savedBankInfo;

@@ -1,17 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/transaction_model.dart';
 
 class AdminTransactionRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Lấy danh sách lệnh rút tiền dang cho
+  // Lấy danh sách lệnh rút tiền đang chờ
   Stream<List<TransactionModel>> getPendingWithdrawals() {
 
     return _db
         .collection('transactions')
         .where('type', isEqualTo: 'redeem') // Chỉ lấy loại đổi thưởng
-        .where('status', isEqualTo: 'pending') // Chỉ lấy Đang chờ
+        .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
@@ -26,6 +25,7 @@ class AdminTransactionRepository {
     await _db.collection('transactions').doc(txId).update({
       'status': 'completed',
     });
+    // Sau khi cập nhật để tự động bắn Push Notification về máy User, làm sau.
   }
 
   // Hàm Từ chối và Hoàn điểm

@@ -38,12 +38,10 @@ class AdminTransactionsTab extends ConsumerWidget {
                           children: [
                             Row(
                               children: [
-                                const CircleAvatar(
-                                  backgroundColor: AppColors.primaryDarkGreen,
-                                  child: Icon(
-                                    Icons.payments,
-                                    color: Colors.white,
-                                  ),
+                                CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: AppColors.accentOrange.withOpacity(0.1),
+                                  child: const Icon(Icons.account_balance_wallet, color: AppColors.accentOrange),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -271,7 +269,7 @@ class AdminTransactionsTab extends ConsumerWidget {
               // Gọi ViewModel để xử lý Firebase
               await ref
                   .read(adminTxActionProvider.notifier)
-                  .reject(tx.id, tx.userId, 20);
+                  .reject(tx.id, tx.userId, tx.pointsUsed);
 
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

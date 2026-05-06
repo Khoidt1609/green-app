@@ -127,38 +127,75 @@ class AdminSubmissionsTab extends ConsumerWidget {
     WidgetRef ref,
     SubmissionModel sub,
   ) {
-    return Card(
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          //  Thông tin User & Task
-          ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppColors.primaryGreen.withOpacity(0.2),
-              child: Text(sub.userName[0].toUpperCase()),
-            ),
-            title: Text(
-              sub.taskTitle,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              "Bởi: ${sub.userName}\n${DateFormat('dd/MM/yyyy HH:mm').format(sub.createdAt)}",
-            ),
-            trailing: Chip(
-              label: Text(
-                "+${sub.pointsReward}đ",
-                style: const TextStyle(fontSize: 12, color: Colors.white),
+
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.primaryGreen,
+                child: Text(sub.userName[0].toUpperCase()),
               ),
-              backgroundColor: AppColors.primaryGreen,
-            ),
+              const SizedBox(width: 10),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sub.userName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      DateFormat('dd/MM/yyyy HH:mm').format(sub.createdAt),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+
+              _buildStatusChip(sub.status),
+            ],
           ),
 
-          //  Danh sách ảnh minh chứng
+          const SizedBox(height: 12),
+
+          Text(
+            sub.taskTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+
+          const SizedBox(height: 6),
+
+          Row(
+            children: [
+              const Icon(Icons.stars, size: 16, color: Colors.orange),
+              const SizedBox(width: 4),
+              Text("+${sub.pointsReward} điểm"),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: SizedBox(
               height: 120,
               child: ListView.builder(
@@ -170,6 +207,7 @@ class AdminSubmissionsTab extends ConsumerWidget {
             ),
           ),
 
+          const SizedBox(height: 12),
           // Nút bấm duyệt/xóa
           _buildActionArea(context, ref, sub),
         ],
@@ -177,31 +215,38 @@ class AdminSubmissionsTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionArea(BuildContext context, WidgetRef ref, SubmissionModel sub) {
+  Widget _buildActionArea(
+    BuildContext context,
+    WidgetRef ref,
+    SubmissionModel sub,
+  ) {
     // Đang chờ duyệt
     if (sub.status == 'pending') {
       return Row(
         children: [
           Expanded(
-            child: OutlinedButton(
-              onPressed: () => _showRejectDialog(context, ref, sub.id),
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  _showRejectDialog(context, ref, sub.id),
+              icon: const Icon(Icons.close),
+              label: const Text("Từ chối"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                side: BorderSide(color: AppColors.error)
               ),
-              child: const Text("Từ chối"),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: ElevatedButton(
-              onPressed: () => ref.read(adminActionProvider.notifier).approve(sub.id, sub.userId, 50),
+            child: ElevatedButton.icon(
+              onPressed: () => ref
+                  .read(adminActionProvider.notifier)
+                  .approve(sub.id, sub.userId, sub.pointsReward),
+              icon: const Icon(Icons.check),
+              label: const Text("Duyệt"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text("Duyệt bài"),
             ),
           ),
         ],
@@ -222,8 +267,13 @@ class AdminSubmissionsTab extends ConsumerWidget {
           children: [
             Icon(Icons.check_circle, color: AppColors.success, size: 20),
             SizedBox(width: 8),
-            Text("ĐÃ DUYỆT THÀNH CÔNG",
-                style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+            Text(
+              "ĐÃ DUYỆT THÀNH CÔNG",
+              style: TextStyle(
+                color: AppColors.success,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       );
@@ -236,10 +286,7 @@ class AdminSubmissionsTab extends ConsumerWidget {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.error.withOpacity(0.1),
-
-          ),
+          decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
           child: Column(
             children: [
               const Row(
@@ -247,15 +294,26 @@ class AdminSubmissionsTab extends ConsumerWidget {
                 children: [
                   Icon(Icons.cancel, color: AppColors.error, size: 20),
                   SizedBox(width: 8),
-                  Text("BÀI NỘP BỊ TỪ CHỐI",
-                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+                  Text(
+                    "BÀI NỘP BỊ TỪ CHỐI",
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               if (sub.adminNote != null && sub.adminNote!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8, left: 4),
-                  child: Text("Lý do: ${sub.adminNote}",
-                      style: const TextStyle(color: AppColors.textSecondary, fontStyle: FontStyle.italic, fontSize: 13)),
+                  child: Text(
+                    "Lý do: ${sub.adminNote}",
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -294,6 +352,41 @@ class AdminSubmissionsTab extends ConsumerWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color color;
+    String text;
+
+    switch (status) {
+      case 'approved':
+        color = Colors.green;
+        text = "Đã duyệt";
+        break;
+      case 'rejected':
+        color = Colors.red;
+        text = "Từ chối";
+        break;
+      default:
+        color = Colors.orange;
+        text = "Chờ duyệt";
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
