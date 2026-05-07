@@ -2,209 +2,243 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/leaderboard_model.dart';
 import '../viewmodels/leaderboard_viewmodel.dart';
 
-const _gold = Color(0xFFFFD700);
-const _silver = Color(0xFFB0BEC5);
-const _bronze = Color(0xFFCD7F32);
+const _kGold   = Color(0xFFFFD700);
+const _kSilver = Color(0xFFB0BEC5);
+const _kBronze = Color(0xFFCD7F32);
 
 class LeaderboardScreen extends ConsumerWidget {
   const LeaderboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(leaderboardViewModelProvider);
-    final vm = ref.read(leaderboardViewModelProvider.notifier);
-    final green = AppColors.primaryGreen;
+    final state  = ref.watch(leaderboardViewModelProvider);
+    final vm     = ref.read(leaderboardViewModelProvider.notifier);
+    final canPop = Navigator.of(context).canPop();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bảng xếp hạng'),
-        leading: Navigator.canPop(context)
+        // Nút back: hiện khi được push từ màn hình khác
+        leading: canPop
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context, state, vm),
-            Expanded(
-              child: state.isLoading
-                  ? Center(child: CircularProgressIndicator(color: green))
-                  : state.error != null
-                      ? _buildError(context, state.error!, vm)
-                      : _buildBody(context, state, vm),
-            ),
-          ],
+        title: const Text(
+          '🏆  Bảng Xếp Hạng',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: vm.refresh,
+            tooltip: 'Làm mới',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Controls: period + scope + filter chips
+          _Controls(state: state, vm: vm),
+
+          // Prize banner — giải tuần < giải tháng, lấy từ period.prizes
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+            child: _PrizeBanner(state: state),
+          ),
+
+          // Body
+          Expanded(
+            child: state.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primaryGreen))
+                : state.error != null
+                    ? _ErrorView(error: state.error!, onRetry: vm.loadLeaderboard)
+                    : state.entries.isEmpty
+                        ? _EmptyView(scopeLabel: state.scopeLabel)
+                        : _Body(state: state, vm: vm),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildHeader(
-    BuildContext context,
-    LeaderboardState state,
-    LeaderboardViewModel vm,
-  ) {
-    final scheme = Theme.of(context).colorScheme;
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
+// ─── Controls ─────────────────────────────────────────────────────────────────
 
+class _Controls extends StatelessWidget {
+  const _Controls({required this.state, required this.vm});
+  final LeaderboardState    state;
+  final LeaderboardViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
       child: Column(
         children: [
+          // Row 1: Period + Scope
           Row(
             children: [
-              Text(
-                '🏆  Bảng Xếp Hạng',
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: _Toggle<LeaderboardPeriod>(
+                  options:  LeaderboardPeriod.values,
+                  selected: state.period,
+                  label:    (p) => p.label,
+                  onSelect: vm.setPeriod,
                 ),
               ),
-              const Spacer(),
-              _FilterDropdown(
-                scope: state.scope,
-                options: state.filterOptions,
-                selected: state.selectedFilter,
-                onScopeChanged: vm.setScope,
-                onFilterChanged: vm.setFilter,
+              const SizedBox(width: 10),
+              Expanded(
+                child: _Toggle<LeaderboardScope>(
+                  options:  LeaderboardScope.values,
+                  selected: state.scope,
+                  label:    (s) => s.label,
+                  onSelect: vm.setScope,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            height: 42,
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: scheme.outline),
+          const SizedBox(height: 8),
+          // Row 2: Filter chips (quận hoặc tỉnh)
+          if (state.filterOptions.isNotEmpty)
+            _FilterRow(
+              options:    state.filterOptions,
+              selected:   state.selectedFilter,
+              scopeLabel: state.scopeLabel,
+              onChanged:  vm.setFilter,
             ),
-            child: Row(
-              children: [
-                _PeriodTab(
-                  label: '📅  Tuần này',
-                  active: state.period == LeaderboardPeriod.week,
-                  onTap: () => vm.setPeriod(LeaderboardPeriod.week),
-                ),
-                _PeriodTab(
-                  label: '📅  Tháng này',
-                  active: state.period == LeaderboardPeriod.month,
-                  onTap: () => vm.setPeriod(LeaderboardPeriod.month),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          _PrizeBanner(period: state.period),
-          const SizedBox(height: 4),
         ],
       ),
     );
   }
+}
 
-  Widget _buildBody(
-      BuildContext context, LeaderboardState state, LeaderboardViewModel vm) {
-    final green = AppColors.primaryGreen;
+class _Toggle<T> extends StatelessWidget {
+  const _Toggle({
+    required this.options,
+    required this.selected,
+    required this.label,
+    required this.onSelect,
+  });
+  final List<T> options;
+  final T selected;
+  final String Function(T) label;
+  final void Function(T) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    return RefreshIndicator(
-      color: green,
-      backgroundColor: scheme.surface,
-      onRefresh: vm.loadLeaderboard,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          if (state.top3.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: _Top3Podium(top3: state.top3),
-              ),
-            ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-              child: Row(
-                children: [
-                  Icon(Icons.format_list_numbered_rounded,
-                      color: green, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    'BẢNG XẾP HẠNG ĐẦY ĐỦ',
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color:        scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+        border:       Border.all(color: scheme.outline),
+      ),
+      child: Row(
+        children: options.map((opt) {
+          final active = opt == selected;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onSelect(opt),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color:        active ? AppColors.primaryGreen : Colors.transparent,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Center(
+                  child: Text(
+                    label(opt),
                     style: TextStyle(
-                      color: textSub,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
+                      color:      active ? Colors.white : AppColors.textSecondary,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                      fontSize:   12,
                     ),
                   ),
-                ],
+                ),
               ),
             ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.options,
+    required this.selected,
+    required this.scopeLabel,
+    required this.onChanged,
+  });
+  final List<String>     options;
+  final String?          selected;
+  final String           scopeLabel;
+  final void Function(String?) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _Chip(
+            label:    'Tất cả',
+            selected: selected == null,
+            onTap:    () => onChanged(null),
           ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final entry = state.entries[index];
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: _LeaderboardRow(entry: entry),
-                );
-              },
-              childCount: state.entries.length,
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SizedBox(width: 8),
+          ...options.map((o) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _Chip(
+                  label:    o,
+                  selected: selected == o,
+                  onTap:    () => onChanged(o),
+                ),
+              )),
         ],
       ),
     );
   }
+}
 
-  Widget _buildError(
-      BuildContext context, String error, LeaderboardViewModel vm) {
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label, required this.selected, required this.onTap});
+  final String   label;
+  final bool     selected;
+  final VoidCallback onTap;
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.wifi_off_rounded, color: textSub, size: 48),
-          const SizedBox(height: 12),
-          Text(error,
-              style: TextStyle(color: textSub), textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: vm.loadLeaderboard,
-            icon: Icon(Icons.refresh, color: green),
-            label: Text('Thử lại', style: TextStyle(color: green)),
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color:        selected ? AppColors.primaryGreen : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+          border:       Border.all(color: selected ? AppColors.primaryGreen : scheme.outline),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color:      selected ? Colors.white : AppColors.textSecondary,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontSize:   12,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -213,47 +247,45 @@ class LeaderboardScreen extends ConsumerWidget {
 // ─── Prize Banner ─────────────────────────────────────────────────────────────
 
 class _PrizeBanner extends StatelessWidget {
-  const _PrizeBanner({required this.period});
-  final LeaderboardPeriod period;
+  const _PrizeBanner({required this.state});
+  final LeaderboardState state;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
+    final prizes = state.prizes; // từ period.prizes — tuần < tháng
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color:        scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outline),
+        border:       Border.all(color: scheme.outline),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          const _PrizeChip(medal: '🥇', amount: '300.000đ', label: 'Top 1'),
-          const SizedBox(width: 12),
-          // FIX: đã sửa từ '10.0000' → '100.000đ'
-          const _PrizeChip(medal: '🥈', amount: '100.000đ', label: 'Top 2'),
-          const SizedBox(width: 12),
-          const _PrizeChip(medal: '🥉', amount: '50.000đ', label: 'Top 3'),
-          const Spacer(),
+          _PrizeItem(medal: '🥇', label: 'Top 1', amount: prizes[1]!),
+          _PrizeItem(medal: '🥈', label: 'Top 2', amount: prizes[2]!),
+          _PrizeItem(medal: '🥉', label: 'Top 3', amount: prizes[3]!),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                period == LeaderboardPeriod.week ? 'Giải Tuần' : 'Giải Tháng',
-                style: TextStyle(
-                    color: green, fontSize: 12, fontWeight: FontWeight.w700),
+                state.period == LeaderboardPeriod.week
+                    ? '📅  Giải Tuần'
+                    : '📅  Giải Tháng',
+                style: const TextStyle(
+                  color:      AppColors.primaryGreen,
+                  fontWeight: FontWeight.w700,
+                  fontSize:   12,
+                ),
               ),
-              Text('P. Bình Thạnh',
-                  style: TextStyle(color: textSub, fontSize: 11)),
+              const SizedBox(height: 2),
+              const Text(
+                'Reset tự động',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
+              ),
             ],
           ),
         ],
@@ -262,439 +294,175 @@ class _PrizeBanner extends StatelessWidget {
   }
 }
 
-class _PrizeChip extends StatelessWidget {
-  const _PrizeChip(
-      {required this.medal, required this.amount, required this.label});
-  final String medal;
-  final String amount;
-  final String label;
+class _PrizeItem extends StatelessWidget {
+  const _PrizeItem({required this.medal, required this.label, required this.amount});
+  final String medal, label, amount;
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
     return Column(
       children: [
-        Text(medal, style: const TextStyle(fontSize: 18)),
+        Text(medal, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 2),
         Text(amount,
             style: TextStyle(
-                color: onSurface, fontSize: 13, fontWeight: FontWeight.w800)),
-        Text(label, style: TextStyle(color: textSub, fontSize: 10)),
+                color:      Theme.of(context).colorScheme.onSurface,
+                fontSize:   13,
+                fontWeight: FontWeight.w800)),
+        Text(label,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
       ],
     );
   }
 }
 
-// ─── Period Tab ───────────────────────────────────────────────────────────────
+// ─── Body ─────────────────────────────────────────────────────────────────────
 
-class _PeriodTab extends StatelessWidget {
-  const _PeriodTab(
-      {required this.label, required this.active, required this.onTap});
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
+class _Body extends StatelessWidget {
+  const _Body({required this.state, required this.vm});
+  final LeaderboardState    state;
+  final LeaderboardViewModel vm;
 
   @override
   Widget build(BuildContext context) {
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: active ? green : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? Colors.white : textSub,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 13,
+    return RefreshIndicator(
+      color:    AppColors.primaryGreen,
+      onRefresh: vm.refresh,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // Podium Top 3
+          if (state.top3.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+                child: _Podium(top3: state.top3, prizes: state.prizes),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
-// ─── Filter Dropdown ──────────────────────────────────────────────────────────
-
-class _FilterDropdown extends StatelessWidget {
-  const _FilterDropdown({
-    required this.scope,
-    required this.options,
-    required this.selected,
-    required this.onScopeChanged,
-    required this.onFilterChanged,
-  });
-  final LeaderboardScope scope;
-  final List<String> options;
-  final String? selected;
-  final ValueChanged<LeaderboardScope> onScopeChanged;
-  final ValueChanged<String?> onFilterChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    return GestureDetector(
-      onTap: () => _showFilterSheet(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: scheme.outline),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.people_outline_rounded, color: textSub, size: 14),
-            const SizedBox(width: 5),
-            Text(
-              selected ??
-                  (scope == LeaderboardScope.district ? 'Quận ▾' : 'Tỉnh ▾'),
-              style: TextStyle(color: textSub, fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFilterSheet(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: scheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => _FilterSheet(
-        scope: scope,
-        options: options,
-        selected: selected,
-        onScopeChanged: (s) {
-          onScopeChanged(s);
-          Navigator.pop(ctx);
-        },
-        onFilterChanged: (f) {
-          onFilterChanged(f);
-          Navigator.pop(ctx);
-        },
-      ),
-    );
-  }
-}
-
-class _FilterSheet extends StatelessWidget {
-  const _FilterSheet({
-    required this.scope,
-    required this.options,
-    required this.selected,
-    required this.onScopeChanged,
-    required this.onFilterChanged,
-  });
-  final LeaderboardScope scope;
-  final List<String> options;
-  final String? selected;
-  final ValueChanged<LeaderboardScope> onScopeChanged;
-  final ValueChanged<String?> onFilterChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Lọc theo khu vực',
-            style: TextStyle(
-                color: scheme.onSurface,
-                fontSize: 16,
-                fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _ScopeChip(
-                label: 'Quận/Huyện',
-                active: scope == LeaderboardScope.district,
-                onTap: () => onScopeChanged(LeaderboardScope.district),
-              ),
-              const SizedBox(width: 8),
-              _ScopeChip(
-                label: 'Tỉnh/Thành phố',
-                active: scope == LeaderboardScope.city,
-                onTap: () => onScopeChanged(LeaderboardScope.city),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (options.isEmpty)
-            Text('Không có dữ liệu', style: TextStyle(color: textSub))
-          else
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  ListTile(
-                    dense: true,
-                    title: Text('Tất cả',
-                        style: TextStyle(color: scheme.onSurface)),
-                    leading: Icon(
-                      selected == null
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_off,
-                      color: selected == null ? green : textSub,
-                      size: 18,
+          // Header danh sách đầy đủ
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 6),
+              child: Row(
+                children: const [
+                  Icon(Icons.format_list_numbered_rounded,
+                      color: AppColors.primaryGreen, size: 15),
+                  SizedBox(width: 6),
+                  Text(
+                    'BẢNG ĐẦY ĐỦ',
+                    style: TextStyle(
+                      color:       AppColors.textSecondary,
+                      fontSize:    11,
+                      fontWeight:  FontWeight.w700,
+                      letterSpacing: 1.1,
                     ),
-                    onTap: () => onFilterChanged(null),
                   ),
-                  ...options.map((o) => ListTile(
-                        dense: true,
-                        title: Text(o,
-                            style: TextStyle(color: scheme.onSurface)),
-                        leading: Icon(
-                          selected == o
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off,
-                          color: selected == o ? green : textSub,
-                          size: 18,
-                        ),
-                        onTap: () => onFilterChanged(o),
-                      )),
                 ],
               ),
             ),
+          ),
+
+          // Toàn bộ danh sách (bao gồm cả top 3 để scroll liền mạch)
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) {
+                final entry = state.entries[i];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  child: _EntryRow(entry: entry, prize: state.prizes[entry.rank]),
+                );
+              },
+              childCount: state.entries.length,
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
   }
 }
 
-class _ScopeChip extends StatelessWidget {
-  const _ScopeChip(
-      {required this.label, required this.active, required this.onTap});
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
+// ─── Podium ───────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: active
-              ? green.withValues(alpha: 0.2)
-              : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? green : scheme.outline),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: active ? green : textSub,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Top 3 Podium ─────────────────────────────────────────────────────────────
-
-class _Top3Podium extends StatefulWidget {
-  const _Top3Podium({required this.top3});
+class _Podium extends StatefulWidget {
+  const _Podium({required this.top3, required this.prizes});
   final List<LeaderboardEntry> top3;
+  final Map<int, String>       prizes;
 
   @override
-  State<_Top3Podium> createState() => _Top3PodiumState();
+  State<_Podium> createState() => _PodiumState();
 }
 
-class _Top3PodiumState extends State<_Top3Podium> with TickerProviderStateMixin {
-  late final List<AnimationController> _controllers;
-  late final List<Animation<double>> _fadeAnims;
-  late final List<Animation<Offset>> _slideAnims;
+class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
+  late final List<AnimationController> _ctrl;
+  late final List<Animation<double>>   _fade;
+  late final List<Animation<Offset>>   _slide;
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(
-      3,
-      (i) => AnimationController(
-        vsync: this,
-        duration: Duration(milliseconds: 500 + i * 120),
-      ),
-    );
-    _fadeAnims = _controllers
-        .map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut))
-        .toList();
-    _slideAnims = _controllers
-        .map((c) => Tween<Offset>(
-              begin: const Offset(0, 0.25),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: c, curve: Curves.easeOutCubic)))
-        .toList();
-
-    for (int i = 0; i < _controllers.length; i++) {
-      Future.delayed(Duration(milliseconds: i * 100), () {
-        if (mounted) _controllers[i].forward();
-      });
+    _ctrl = List.generate(3, (i) => AnimationController(
+        vsync: this, duration: Duration(milliseconds: 400 + i * 100)));
+    _fade  = _ctrl.map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut)).toList();
+    _slide = _ctrl.map((c) => Tween<Offset>(
+          begin: const Offset(0, 0.2), end: Offset.zero)
+        .animate(CurvedAnimation(parent: c, curve: Curves.easeOutCubic))).toList();
+    for (int i = 0; i < _ctrl.length; i++) {
+      Future.delayed(Duration(milliseconds: i * 80),
+          () { if (mounted) _ctrl[i].forward(); });
     }
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
+    for (final c in _ctrl) c.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final top3 = widget.top3;
-    if (top3.isEmpty) return const SizedBox.shrink();
-
-    final scheme = Theme.of(context).colorScheme;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            children: [
-              const Icon(Icons.emoji_events_rounded, color: _gold, size: 15),
-              const SizedBox(width: 6),
-              Text(
-                'BẢNG VINH DANH TOP 3',
-                style: TextStyle(
-                  color: textSub,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
+    final t = widget.top3;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
+      decoration: BoxDecoration(
+        color:        Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border:       Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 🥈 rank 2 (trái)
+          if (t.length > 1)
+            Expanded(
+              child: FadeTransition(opacity: _fade[1],
+                child: SlideTransition(position: _slide[1],
+                  child: _PodiumCard(entry: t[1], medal: _kSilver,
+                      isFirst: false, prize: widget.prizes[2]))),
+            )
+          else const Spacer(),
+          const SizedBox(width: 8),
+          // 🥇 rank 1 (giữa, cao hơn)
+          Expanded(
+            child: FadeTransition(opacity: _fade[0],
+              child: SlideTransition(position: _slide[0],
+                child: _PodiumCard(entry: t[0], medal: _kGold,
+                    isFirst: true, prize: widget.prizes[1]))),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: scheme.outline),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (top3.length > 1)
-                Expanded(
-                  child: FadeTransition(
-                    opacity: _fadeAnims[1],
-                    child: SlideTransition(
-                      position: _slideAnims[1],
-                      child: _PodiumCard(
-                          entry: top3[1],
-                          medalColor: _silver,
-                          isFirst: false,
-                          prize: '100.000đ'), // FIX: đã sửa
-                    ),
-                  ),
-                )
-              else
-                const Spacer(),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FadeTransition(
-                  opacity: _fadeAnims[0],
-                  child: SlideTransition(
-                    position: _slideAnims[0],
-                    child: _PodiumCard(
-                        entry: top3[0],
-                        medalColor: _gold,
-                        isFirst: true,
-                        prize: '300.000đ'),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (top3.length > 2)
-                Expanded(
-                  child: FadeTransition(
-                    opacity: _fadeAnims[2],
-                    child: SlideTransition(
-                      position: _slideAnims[2],
-                      child: _PodiumCard(
-                          entry: top3[2],
-                          medalColor: _bronze,
-                          isFirst: false,
-                          prize: '50.000đ'),
-                    ),
-                  ),
-                )
-              else
-                const Spacer(),
-            ],
-          ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          // 🥉 rank 3 (phải)
+          if (t.length > 2)
+            Expanded(
+              child: FadeTransition(opacity: _fade[2],
+                child: SlideTransition(position: _slide[2],
+                  child: _PodiumCard(entry: t[2], medal: _kBronze,
+                      isFirst: false, prize: widget.prizes[3]))),
+            )
+          else const Spacer(),
+        ],
+      ),
     );
   }
 }
@@ -702,221 +470,150 @@ class _Top3PodiumState extends State<_Top3Podium> with TickerProviderStateMixin 
 class _PodiumCard extends StatelessWidget {
   const _PodiumCard({
     required this.entry,
-    required this.medalColor,
+    required this.medal,
     required this.isFirst,
-    required this.prize,
+    this.prize,
   });
   final LeaderboardEntry entry;
-  final Color medalColor;
-  final bool isFirst;
-  final String prize;
+  final Color  medal;
+  final bool   isFirst;
+  final String? prize;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
-
-    final avatarSize = isFirst ? 56.0 : 46.0;
-    final fontSize = isFirst ? 14.0 : 12.0;
+    final sz = isFirst ? 56.0 : 44.0;
+    final fz = isFirst ? 14.0 : 12.0;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         if (isFirst)
-          const Text('👑', style: TextStyle(fontSize: 20))
+          const Text('👑', style: TextStyle(fontSize: 22))
         else
-          const SizedBox(height: 24),
+          const SizedBox(height: 26),
         const SizedBox(height: 4),
         Stack(
           alignment: Alignment.bottomRight,
           children: [
             Container(
-              width: avatarSize,
-              height: avatarSize,
+              width: sz, height: sz,
               decoration: BoxDecoration(
+                color:        medal.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(isFirst ? 18 : 14),
-                color: medalColor.withValues(alpha: 0.18),
-                border: Border.all(
-                    color: medalColor, width: isFirst ? 2.5 : 2),
+                border:       Border.all(color: medal, width: isFirst ? 2.5 : 2),
               ),
               child: Center(
-                child: Text(
-                  entry.avatarInitial,
-                  style: TextStyle(
-                    color: medalColor,
-                    fontSize: isFirst ? 22 : 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: Text(entry.avatarInitial,
+                    style: TextStyle(color: medal,
+                        fontSize: isFirst ? 22 : 17, fontWeight: FontWeight.w900)),
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: medalColor,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '#${entry.rank}',
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(color: medal, borderRadius: BorderRadius.circular(5)),
+              child: Text('#${entry.rank}',
+                  style: const TextStyle(color: Colors.black,
+                      fontSize: 9, fontWeight: FontWeight.w900)),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          entry.displayName,
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontSize: fontSize,
-            fontWeight: FontWeight.w800,
+        Text(entry.displayName,
+            style: TextStyle(color: scheme.onSurface,
+                fontSize: fz, fontWeight: FontWeight.w800),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center),
+        // ── Location từ Firebase address ──
+        if (entry.locationLabel.isNotEmpty)
+          Text(entry.locationLabel,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+              maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+        const SizedBox(height: 3),
+        Text(_fmtPts(entry.points),
+            style: const TextStyle(color: AppColors.primaryGreen,
+                fontSize: 11, fontWeight: FontWeight.w700)),
+        if (prize != null) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color:        scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+              border:       Border.all(color: scheme.outline),
+            ),
+            child: Text(prize!,
+                style: TextStyle(color: scheme.onSurface,
+                    fontSize: 11, fontWeight: FontWeight.w700)),
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 2),
-        Text('${_formatNum(entry.points)} pts',
-            style: TextStyle(color: green, fontSize: 11)),
+        ],
         const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: scheme.outline),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.credit_card_rounded, size: 11, color: textSub),
-              const SizedBox(width: 3),
-              Text(
-                prize,
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          entry.rank == 1
-              ? '🥇'
-              : entry.rank == 2
-                  ? '🥈'
-                  : '🥉',
-          style: const TextStyle(fontSize: 18),
-        ),
+        Text(entry.rank == 1 ? '🥇' : entry.rank == 2 ? '🥈' : '🥉',
+            style: const TextStyle(fontSize: 17)),
       ],
     );
   }
 }
 
-// ─── Full list row ────────────────────────────────────────────────────────────
+// ─── Entry Row ────────────────────────────────────────────────────────────────
 
-class _LeaderboardRow extends StatelessWidget {
-  const _LeaderboardRow({required this.entry});
+class _EntryRow extends StatelessWidget {
+  const _EntryRow({required this.entry, this.prize});
   final LeaderboardEntry entry;
-
-  // FIX: prize map đúng cho cả list row
-  static const _prizes = {'1': '300.000đ', '2': '100.000đ', '3': '50.000đ'};
+  final String?          prize;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final green = AppColors.primaryGreen;
-    final textSub = Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.7) ??
-        Colors.grey.shade600;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color:        scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outline),
+        border:       Border.all(color: scheme.outline),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 28,
-            child: Text(
-              '#${entry.rank}',
-              style: TextStyle(
-                color: green,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
-            ),
+            width: 30,
+            child: Text('#${entry.rank}',
+                style: const TextStyle(color: AppColors.primaryGreen,
+                    fontWeight: FontWeight.w800, fontSize: 14)),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           CircleAvatar(
             radius: 18,
-            backgroundColor: green.withValues(alpha: 0.2),
-            child: Text(
-              entry.avatarInitial,
-              style: TextStyle(
-                  color: green, fontWeight: FontWeight.w800, fontSize: 14),
-            ),
+            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.18),
+            child: Text(entry.avatarInitial,
+                style: const TextStyle(color: AppColors.primaryGreen,
+                    fontWeight: FontWeight.w800, fontSize: 14)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  entry.displayName,
-                  style: TextStyle(
-                    color: scheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (entry.district != null)
-                  Text('P. ${entry.district}',
-                      style: TextStyle(color: textSub, fontSize: 11)),
+                Text(entry.displayName,
+                    style: TextStyle(color: scheme.onSurface,
+                        fontWeight: FontWeight.w700, fontSize: 14),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                // ── Location từ Firebase address ──
+                if (entry.locationLabel.isNotEmpty)
+                  Text(entry.locationLabel,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                _formatNum(entry.points),
-                style: TextStyle(
-                    color: green, fontWeight: FontWeight.w800, fontSize: 16),
-              ),
-              if (entry.rank <= 3)
-                Row(
-                  children: [
-                    Icon(Icons.credit_card_rounded, size: 10, color: textSub),
-                    const SizedBox(width: 3),
-                    Text(
-                      _prizes['${entry.rank}'] ?? '',
-                      style: TextStyle(color: textSub, fontSize: 11),
-                    ),
-                  ],
-                ),
+              Text(_fmtPts(entry.points),
+                  style: const TextStyle(color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.w800, fontSize: 15)),
+              if (prize != null)
+                Text(prize!,
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
             ],
           ),
         ],
@@ -925,15 +622,53 @@ class _LeaderboardRow extends StatelessWidget {
   }
 }
 
+// ─── Empty / Error ─────────────────────────────────────────────────────────────
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView({required this.scopeLabel});
+  final String scopeLabel;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.people_outline_rounded,
+          color: AppColors.textSecondary, size: 52),
+      const SizedBox(height: 12),
+      Text('Chưa có dữ liệu cho $scopeLabel này.',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          textAlign: TextAlign.center),
+    ]),
+  );
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.error, required this.onRetry});
+  final String   error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.wifi_off_rounded, color: AppColors.textSecondary, size: 48),
+      const SizedBox(height: 12),
+      Text(error,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          textAlign: TextAlign.center),
+      const SizedBox(height: 16),
+      OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Thử lại')),
+    ]),
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-String _formatNum(int n) {
+String _fmtPts(int n) {
   if (n >= 1000) {
     final k = n / 1000;
-    final formatted = k == k.truncateToDouble()
-        ? '${k.toInt()}k'
-        : '${k.toStringAsFixed(1)}k';
-    return formatted;
+    return k == k.truncateToDouble() ? '${k.toInt()}k pts' : '${k.toStringAsFixed(1)}k pts';
   }
-  return n.toString();
+  return '$n pts';
 }

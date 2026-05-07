@@ -1,17 +1,11 @@
 // lib/features/leaderboard/viewmodels/leaderboard_viewmodel.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:green_app/data/models/leaderboard_model.dart';
-import 'package:green_app/data/repositories/leaderboard_repository.dart';
+
+import '../../../data/models/leaderboard_model.dart';
+import '../../../data/repositories/leaderboard_repository.dart';
 
 class LeaderboardState {
-  final List<LeaderboardEntry> entries;
-  final bool isLoading;
-  final String? error;
-  final LeaderboardPeriod period;
-  final LeaderboardScope scope;
-  final String? selectedFilter;
-  final List<String> filterOptions;
-
   const LeaderboardState({
     this.entries = const [],
     this.isLoading = false,
@@ -21,6 +15,14 @@ class LeaderboardState {
     this.selectedFilter,
     this.filterOptions = const [],
   });
+
+  final List<LeaderboardEntry> entries;
+  final bool isLoading;
+  final String? error;
+  final LeaderboardPeriod period;
+  final LeaderboardScope scope;
+  final String? selectedFilter;
+  final List<String> filterOptions;
 
   LeaderboardState copyWith({
     List<LeaderboardEntry>? entries,
@@ -39,32 +41,33 @@ class LeaderboardState {
       error: clearError ? null : error ?? this.error,
       period: period ?? this.period,
       scope: scope ?? this.scope,
-      selectedFilter:
-          clearFilter ? null : selectedFilter ?? this.selectedFilter,
+      selectedFilter: clearFilter ? null : selectedFilter ?? this.selectedFilter,
       filterOptions: filterOptions ?? this.filterOptions,
     );
   }
 
   List<LeaderboardEntry> get top3 => entries.take(3).toList();
   List<LeaderboardEntry> get rest => entries.skip(3).toList();
+  Map<int, String> get prizes => period.prizes;
+  String get periodLabel => period.label;
+  String get scopeLabel => scope.label;
 }
 
 class LeaderboardViewModel extends StateNotifier<LeaderboardState> {
-  final LeaderboardRepository _repo;
-
   LeaderboardViewModel(this._repo) : super(const LeaderboardState()) {
     _init();
   }
 
+  final LeaderboardRepository _repo;
+
   Future<void> _init() async {
-    await _loadFilterOptions();
-    await loadLeaderboard();
+    await Future.wait([_loadFilterOptions(), loadLeaderboard()]);
   }
 
   Future<void> _loadFilterOptions() async {
     try {
       final options = state.scope == LeaderboardScope.district
-          ? await _repo.getDistincts()
+          ? await _repo.getDistricts()
           : await _repo.getCities();
       state = state.copyWith(filterOptions: options);
     } catch (_) {}
@@ -82,7 +85,7 @@ class LeaderboardViewModel extends StateNotifier<LeaderboardState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Không thể tải bảng xếp hạng: $e',
+        error: 'Không thể tải bảng xếp hạng.',
       );
     }
   }
@@ -96,16 +99,20 @@ class LeaderboardViewModel extends StateNotifier<LeaderboardState> {
   Future<void> setScope(LeaderboardScope scope) async {
     if (state.scope == scope) return;
     state = state.copyWith(scope: scope, clearFilter: true);
-    await _loadFilterOptions();
-    await loadLeaderboard();
+    await Future.wait([_loadFilterOptions(), loadLeaderboard()]);
   }
 
   Future<void> setFilter(String? filter) async {
+    if (state.selectedFilter == filter) return;
     state = state.copyWith(
       selectedFilter: filter,
       clearFilter: filter == null,
     );
     await loadLeaderboard();
+  }
+
+  Future<void> refresh() async {
+    await Future.wait([_loadFilterOptions(), loadLeaderboard()]);
   }
 }
 
