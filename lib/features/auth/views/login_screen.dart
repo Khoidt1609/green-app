@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../viewmodels/auth_view_model.dart';
 import '../../../router/app_router.dart';
+import '../viewmodels/auth_view_model.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,8 +14,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
 
   @override
@@ -30,11 +32,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    FocusScope.of(context).unfocus();
+
     final error = await ref
         .read(authViewModelProvider.notifier)
         .login(
-          email: _emailController.text,
-          password: _passwordController.text,
+          emailOrUsername: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
         );
 
     if (!mounted) {
@@ -42,24 +46,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đăng nhập thành công. Chào mừng đến GreenStep!'),
+        content: Text(
+          'Đăng nhập thành công. Chào mừng đến GreenStep!',
+        ),
       ),
     );
 
     Navigator.of(
       context,
-    ).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+    ).pushNamedAndRemoveUntil(
+      AppRouter.home,
+      (route) => false,
+    );
   }
 
   Future<void> _onGooglePressed() async {
+    FocusScope.of(context).unfocus();
+
     final error = await ref
         .read(authViewModelProvider.notifier)
         .loginWithGoogle();
@@ -69,62 +80,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đăng nhập Google thành công. Chào mừng đến GreenStep!'),
+        content: Text(
+          'Đăng nhập Google thành công.',
+        ),
       ),
     );
 
     Navigator.of(
       context,
-    ).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+    ).pushNamedAndRemoveUntil(
+      AppRouter.home,
+      (route) => false,
+    );
   }
 
   Future<void> _onForgotPasswordPressed() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
+    final emailOrUsername = _emailController.text.trim();
+
+    if (emailOrUsername.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Nhập email hoặc tên đăng nhập trước khi khôi phục.'),
+          content: Text(
+            'Nhập email hoặc tên đăng nhập trước khi khôi phục.',
+          ),
         ),
       );
       return;
     }
 
+    FocusScope.of(context).unfocus();
+
     final error = await ref
         .read(authViewModelProvider.notifier)
-        .forgotPassword(email: email);
+        .forgotPassword(
+          emailOrUsername: emailOrUsername,
+        );
 
     if (!mounted) {
       return;
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đã gửi email khôi phục mật khẩu. Hãy kiểm tra hộp thư.'),
+        content: Text(
+          'Đã gửi email khôi phục mật khẩu.',
+        ),
       ),
     );
-
-    FocusScope.of(context).unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authViewModelProvider);
-    final isLoading = authState.isLoading;
+    final isLoading = ref.watch(
+      authViewModelProvider.select(
+        (state) => state.isLoading,
+      ),
+    );
 
     return Scaffold(
       body: Container(
@@ -132,7 +158,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           gradient: RadialGradient(
             center: Alignment(-0.9, -0.95),
             radius: 1.4,
-            colors: [Color(0xFFEAF7F0), AppColors.backgroundLight],
+            colors: [
+              Color(0xFFEAF7F0),
+              AppColors.backgroundLight,
+            ],
           ),
         ),
         child: SafeArea(
@@ -142,8 +171,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Form(
                 key: _formKey,
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                  constraints: const BoxConstraints(
+                    maxWidth: 440,
+                  ),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    18,
+                    20,
+                    18,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(24),
@@ -159,14 +195,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
                     children: [
                       Center(
                         child: Container(
                           height: 74,
                           width: 74,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius:
+                                BorderRadius.circular(18),
                             gradient: const LinearGradient(
                               colors: [
                                 AppColors.primaryGreen,
@@ -175,11 +213,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryGreen.withValues(
-                                  alpha: 0.35,
-                                ),
+                                color: AppColors.primaryGreen
+                                    .withOpacity(0.35),
                                 blurRadius: 20,
-                                offset: Offset(0, 8),
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
@@ -190,7 +227,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 18),
+
                       const Text(
                         'Đăng nhập',
                         textAlign: TextAlign.center,
@@ -200,6 +239,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           fontSize: 36,
                         ),
                       ),
+
+                      const SizedBox(height: 6),
+
                       const Text(
                         'Chào mừng trở lại!',
                         textAlign: TextAlign.center,
@@ -208,12 +250,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           fontSize: 16,
                         ),
                       ),
+
                       const SizedBox(height: 18),
+
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color: AppColors.surfaceMutedLight,
+                          borderRadius:
+                              BorderRadius.circular(14),
+                          color:
+                              AppColors.surfaceMutedLight,
                           border: Border.all(
                             color: AppColors.borderLight,
                           ),
@@ -222,14 +268,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           children: [
                             Icon(
                               Icons.sync_alt_rounded,
-                              color: AppColors.primaryGreen,
+                              color:
+                                  AppColors.primaryGreen,
                             ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Earn-to-Reward Cycle\nHành động xanh -> Điểm thưởng -> Bảng xếp hạng -> Nhận tiền mặt',
+                                'Earn-to-Reward Cycle\nHành động xanh → Điểm thưởng → Bảng xếp hạng → Nhận tiền mặt',
                                 style: TextStyle(
-                                  color: AppColors.textPrimary,
+                                  color:
+                                      AppColors.textPrimary,
                                   fontSize: 12,
                                   height: 1.3,
                                 ),
@@ -238,7 +286,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+
+                      const SizedBox(height: 18),
+
                       const Text(
                         'Email hoặc tên đăng nhập',
                         style: TextStyle(
@@ -246,23 +296,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           fontSize: 13,
                         ),
                       ),
+
                       const SizedBox(height: 6),
+
                       _AuthField(
                         controller: _emailController,
-                        hint: 'email@example.com hoặc minhnguyen',
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
+                        hint:
+                            'email@example.com hoặc minhnguyen',
+                        prefixIcon:
+                            Icons.email_outlined,
+                        keyboardType:
+                            TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
+                          if (value == null ||
+                              value.trim().isEmpty) {
                             return 'Vui lòng nhập email hoặc tên đăng nhập';
                           }
-                          if (value.contains('@') && !value.contains('.')) {
+
+                          if (value.contains('@') &&
+                              !value.contains('.')) {
                             return 'Email không hợp lệ';
                           }
+
                           return null;
                         },
                       ),
+
                       const SizedBox(height: 12),
+
                       const Text(
                         'Mật khẩu',
                         style: TextStyle(
@@ -270,134 +331,191 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           fontSize: 13,
                         ),
                       ),
+
                       const SizedBox(height: 6),
+
                       _AuthField(
                         controller: _passwordController,
                         hint: '••••••••',
-                        prefixIcon: Icons.lock_outline,
-                        obscureText: _obscurePassword,
+                        prefixIcon:
+                            Icons.lock_outline,
+                        obscureText:
+                            _obscurePassword,
                         suffixIcon: IconButton(
                           onPressed: () {
                             setState(() {
-                              _obscurePassword = !_obscurePassword;
+                              _obscurePassword =
+                                  !_obscurePassword;
                             });
                           },
                           icon: Icon(
                             _obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            color: AppColors.primaryGreen.withValues(
-                              alpha: 0.75,
-                            ),
+                                ? Icons
+                                      .visibility_outlined
+                                : Icons
+                                      .visibility_off_outlined,
+                            color: AppColors
+                                .primaryGreen
+                                .withOpacity(0.75),
                           ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          if (value == null ||
+                              value.isEmpty) {
                             return 'Vui lòng nhập mật khẩu';
                           }
+
                           if (value.length < 6) {
                             return 'Mật khẩu tối thiểu 6 ký tự';
                           }
+
                           return null;
                         },
                       ),
+
                       const SizedBox(height: 8),
+
                       Align(
-                        alignment: Alignment.centerRight,
+                        alignment:
+                            Alignment.centerRight,
                         child: TextButton(
                           onPressed: isLoading
                               ? null
                               : _onForgotPasswordPressed,
-                          child: const Text('Quên mật khẩu?'),
+                          child: const Text(
+                            'Quên mật khẩu?',
+                          ),
                         ),
                       ),
+
                       const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            gradient: const LinearGradient(
-                              colors: [
-                                AppColors.primaryGreen,
-                                AppColors.primaryDarkGreen,
-                              ],
-                            ),
-                          ),
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                            ),
-                            onPressed: isLoading ? null : _onLoginPressed,
-                            child: isLoading
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Đăng nhập',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppColors.primaryGreen,
+                              AppColors.primaryDarkGreen,
+                            ],
                           ),
                         ),
+                        child: FilledButton(
+                          style:
+                              FilledButton.styleFrom(
+                            backgroundColor:
+                                Colors.transparent,
+                            shadowColor:
+                                Colors.transparent,
+                            padding:
+                                const EdgeInsets.symmetric(
+                              vertical: 15,
+                            ),
+                          ),
+                          onPressed: isLoading
+                              ? null
+                              : _onLoginPressed,
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child:
+                                      CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color:
+                                        Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Đăng nhập',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight:
+                                        FontWeight.w700,
+                                  ),
+                                ),
+                        ),
                       ),
-                      const SizedBox(height: 12),
+
+                      const SizedBox(height: 14),
+
                       Row(
                         children: [
                           Expanded(
                             child: Divider(
-                              color: AppColors.borderLight,
+                              color:
+                                  AppColors.borderLight,
                             ),
                           ),
                           const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            padding:
+                                EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
                             child: Text(
                               'hoặc',
-                              style: TextStyle(color: AppColors.textSecondary),
+                              style: TextStyle(
+                                color: AppColors
+                                    .textSecondary,
+                              ),
                             ),
                           ),
                           Expanded(
                             child: Divider(
-                              color: AppColors.borderLight,
+                              color:
+                                  AppColors.borderLight,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+
+                      const SizedBox(height: 14),
+
                       OutlinedButton.icon(
-                        onPressed: isLoading ? null : _onGooglePressed,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(
-                            color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                        onPressed: isLoading
+                            ? null
+                            : _onGooglePressed,
+                        style:
+                            OutlinedButton.styleFrom(
+                          padding:
+                              const EdgeInsets.symmetric(
+                            vertical: 14,
                           ),
-                          foregroundColor: AppColors.primaryDarkGreen,
+                          side: BorderSide(
+                            color: AppColors
+                                .primaryGreen
+                                .withOpacity(0.35),
+                          ),
+                          foregroundColor:
+                              AppColors
+                                  .primaryDarkGreen,
                         ),
-                        icon: const Icon(Icons.g_mobiledata_rounded),
+                        icon: const Icon(
+                          Icons.g_mobiledata_rounded,
+                        ),
                         label: const Text(
                           'Tiếp tục với Google',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight:
+                                FontWeight.w600,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+
+                      const SizedBox(height: 10),
+
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment:
+                            MainAxisAlignment.center,
                         children: [
                           const Text(
                             'Chưa có tài khoản? ',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            style: TextStyle(
+                              color: AppColors
+                                  .textSecondary,
+                            ),
                           ),
                           TextButton(
                             onPressed: isLoading
@@ -405,9 +523,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 : () {
                                     Navigator.of(
                                       context,
-                                    ).pushNamed(AppRouter.register);
+                                    ).pushNamed(
+                                      AppRouter
+                                          .register,
+                                    );
                                   },
-                            child: const Text('Đăng ký ngay'),
+                            child: const Text(
+                              'Đăng ký ngay',
+                            ),
                           ),
                         ],
                       ),
@@ -449,31 +572,39 @@ class _AuthField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(color: AppColors.textPrimary),
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.textSecondary),
+        hintStyle: const TextStyle(
+          color: AppColors.textSecondary,
+        ),
         prefixIcon: Icon(
           prefixIcon,
-          color: AppColors.primaryGreen.withValues(alpha: 0.75),
+          color: AppColors.primaryGreen
+              .withOpacity(0.75),
         ),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: AppColors.surfaceLight,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius:
+              BorderRadius.circular(14),
           borderSide: const BorderSide(
             color: AppColors.borderLight,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius:
+              BorderRadius.circular(14),
           borderSide: const BorderSide(
             color: AppColors.borderLight,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius:
+              BorderRadius.circular(14),
           borderSide: const BorderSide(
             color: AppColors.primaryGreen,
             width: 1.4,

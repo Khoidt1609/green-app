@@ -1,91 +1,96 @@
-// lib/features/leaderboard/repositories/leaderboard_repository.dart
+// lib/data/repositories/leaderboard_repository.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/leaderboard_model.dart';
 
 class LeaderboardRepository {
+  LeaderboardRepository(this._firestore);
   final FirebaseFirestore _firestore;
 
-  LeaderboardRepository(this._firestore);
-
-  /// Lấy top users theo tuần hoặc tháng, filter theo district/city
+  /// Firestore không cho phép orderBy(fieldA) + where(fieldB) trên 2 field khác nhau
+  /// mà không có composite index.
+  /// Chiến lược:
+  ///   - Không filter → orderBy trên Firestore (tối ưu, limit 50)
+  ///   - Có filter    → where trên Firestore, sort + limit client-side
   Future<List<LeaderboardEntry>> getLeaderboard({
     required LeaderboardPeriod period,
     required LeaderboardScope scope,
-    String? filterValue, // tên quận hoặc tỉnh
+    String? filterValue,
   }) async {
-    final pointsField =
-        period == LeaderboardPeriod.week ? 'weekPoints' : 'monthPoints';
+    final pointsField = period.pointsField;
 
-    Query query = _firestore
-        .collection('users')
-        .orderBy(pointsField, descending: true)
-        .limit(50);
+    QuerySnapshot<Map<String, dynamic>> snapshot;
 
-    // Filter theo địa chỉ nếu có
-    if (filterValue != null && filterValue.isNotEmpty) {
-      if (scope == LeaderboardScope.district) {
-        query = query.where('address.district', isEqualTo: filterValue);
-      } else {
-        query = query.where('address.city', isEqualTo: filterValue);
+    if (filterValue == null || filterValue.isEmpty) {
+      snapshot = await _firestore
+          .collection('users')
+          .orderBy(pointsField, descending: true)
+          .limit(50)
+          .get();
+    } else {
+      snapshot = await _firestore
+          .collection('users')
+          .where(scope.filterField, isEqualTo: filterValue)
+          .get();
+    }
+
+    final rawList = <Map<String, dynamic>>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      if (!data.containsKey('weekPoints') && !data.containsKey('monthPoints')) {
+        continue;
       }
+      data['uid'] = doc.id;
+      rawList.add(data);
     }
 
-    final snapshot = await query.get();
-final entries = <LeaderboardEntry>[];
-
-for (int i = 0; i < snapshot.docs.length; i++) {
-  final doc = snapshot.docs[i];
-  final raw = doc.data();
-
-  // Bảo vệ kiểu: nếu raw không phải Map thì bỏ qua hoặc log
-  if (raw is! Map<String, dynamic>) {
-    // optional: log debug
-    // print('Unexpected doc.data() type for ${doc.id}: ${raw.runtimeType}');
-    continue;
-  }
-
-  final data = Map<String, dynamic>.from(raw);
-  data['uid'] = doc.id;
-  final entry = LeaderboardEntry.fromMap(data, i + 1);
-  entries.add(entry);
-}
-
-
-    return entries;
-  }
-
-  /// Lấy danh sách quận từ users (distinct)
-  Future<List<String>> getDistincts() async {
-  final snapshot = await _firestore.collection('users').get();
-  final districts = <String>{};
-  for (final doc in snapshot.docs) {
-    final raw = doc.data()['address'];
-    String? d;
-    if (raw is Map<String, dynamic>) {
-      d = raw['district'] as String?;
-    } else if (raw is List && raw.isNotEmpty) {
-      final first = raw[0];
-      if (first is String) d = first;
-      else if (first is Map<String, dynamic>) d = first['district'] as String?;
+    if (filterValue != null && filterValue.isNotEmpty) {
+      rawList.sort((a, b) {
+        final pa = (a[pointsField] as num?)?.toInt() ?? 0;
+        final pb = (b[pointsField] as num?)?.toInt() ?? 0;
+        return pb.compareTo(pa);
+      });
     }
-    if (d != null && d.isNotEmpty) districts.add(d);
+
+    final limited = rawList.take(50).toList();
+    return [
+      for (int i = 0; i < limited.length; i++)
+        LeaderboardEntry.fromMap(limited[i], i + 1, period),
+    ];
   }
-  return districts.toList()..sort();
-}
 
+  Future<List<String>> getDistricts() async {
+    final snapshot = await _firestore.collection('users').get();
+    final result = <String>{};
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final address = data['address'];
+      if (address is Map<String, dynamic>) {
+        final d = (address['district'] as String?)?.trim();
+        if (d != null && d.isNotEmpty) result.add(d);
+      }
+      final flat = (data['district'] as String?)?.trim();
+      if (flat != null && flat.isNotEmpty) result.add(flat);
+    }
+    return result.toList()..sort();
+  }
 
-  /// Lấy danh sách tỉnh/thành từ users (distinct)
   Future<List<String>> getCities() async {
     final snapshot = await _firestore.collection('users').get();
-    final cities = <String>{};
+    final result = <String>{};
     for (final doc in snapshot.docs) {
-      final address = doc.data()['address'] as Map<String, dynamic>?;
-      final c = address?['city'] as String?;
-      if (c != null && c.isNotEmpty) cities.add(c);
+      final data = doc.data();
+      final address = data['address'];
+      if (address is Map<String, dynamic>) {
+        final c = (address['city'] as String?)?.trim();
+        if (c != null && c.isNotEmpty) result.add(c);
+      }
+      final flat = (data['city'] as String?)?.trim();
+      if (flat != null && flat.isNotEmpty) result.add(flat);
     }
-    return cities.toList()..sort();
+    return result.toList()..sort();
   }
 }
 
