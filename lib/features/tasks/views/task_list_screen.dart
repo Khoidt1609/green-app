@@ -28,21 +28,25 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      //  AppBar
+      appBar: AppBar(
+        title: const Text(
+          'Nhiệm vụ',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: AppColors.primaryGreen,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('GREENSTEP', style: AppTextStyles.caption.copyWith(color: AppColors.primaryDarkGreen, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                  const SizedBox(height: 8),
-                  Text('Hành Động Xanh', style: AppTextStyles.heading1.copyWith(color: AppColors.textPrimary)),
-                ],
-              ),
-            ),
+            // ĐÃ XÓA: Phần Padding chứa text "Greenstep - Hành động xanh" đã được bỏ đi để dùng AppBar bên trên
 
             // Thanh tìm kiếm
             Padding(
