@@ -4,11 +4,9 @@ import '../models/submission_model.dart'; // Đảm bảo bạn đã có model n
 class AdminRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Lấy danh sách nhiệm vụ đang chờ duyệt
   Stream<List<SubmissionModel>> getSubmissions(String statusFilter) {
     Query query = _db.collection('submissions').orderBy('createdAt', descending: true);
 
-    // Nếu status không phải là all thì thêm điều kiện lọc
     if (statusFilter != 'all') {
       query = query.where('status', isEqualTo: statusFilter);
     }
@@ -16,12 +14,11 @@ class AdminRepository {
         .snapshots()
         .map(
           (snapshot){
-          print("Số lượng doc lấy được: ${snapshot.docs.length}"); // In ra số lượng
+          print("Số lượng doc lấy được: ${snapshot.docs.length}");
           return snapshot.docs.map((doc) => SubmissionModel.fromDocument(doc)).toList();
         });
   }
 
-  // Logic Duyệt bài và Cộng điểm transaction
   Future<void> approveTask(
     String submissionId,
     String userId,
@@ -34,7 +31,6 @@ class AdminRepository {
       DocumentSnapshot userSnap = await transaction.get(userRef);
       if (!userSnap.exists) throw Exception("User không tồn tại");
 
-      // Lấy tất cả các loại điểm hiện tại
       final userData = userSnap.data() as Map<String, dynamic>? ?? {};
       int currentPoints = userData['currentPoints'] ?? 0;
       int currentTotal = userData['totalPoints'] ?? 0;
@@ -45,8 +41,8 @@ class AdminRepository {
         'status': 'approved',
       });
       transaction.update(userRef, {
-        'currentPoints': currentPoints + points, // Tăng ví tiền
-        'totalPoints': currentTotal + points, // Tăng tích lũy
+        'currentPoints': currentPoints + points,
+        'totalPoints': currentTotal + points,
         'weekPoints': currentWeek + points,
         'monthPoints': currentMonth  + points,
       });

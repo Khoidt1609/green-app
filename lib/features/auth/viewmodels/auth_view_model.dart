@@ -1,79 +1,107 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';import 'package:cloud_firestore/cloud_firestore.dart'; // Import thêm thư viện này
 
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/services/auth_service.dart';
 
-final authViewModelProvider =
-    NotifierProvider<AuthViewModel, AsyncValue<void>>(
-      AuthViewModel.new,
-    );
+final authViewModelProvider = NotifierProvider<AuthViewModel, AsyncValue<void>>(
+  AuthViewModel.new,
+);
 
 class AuthViewModel extends Notifier<AsyncValue<void>> {
   late final AuthService _authService;
 
   @override
   AsyncValue<void> build() {
-    _authService = ref.read(authServiceProvider);
+    _authService = ref.watch(authServiceProvider);
     return const AsyncData(null);
   }
-
-  // =========================================================
-  // LOGIN
-  // =========================================================
 
   Future<String?> login({
     required String emailOrUsername,
     required String password,
   }) async {
-    if (state.isLoading) return 'Đang xử lý, vui lòng chờ.';
-
     state = const AsyncLoading();
 
     try {
-      await _authService.signIn(
-        emailOrUsername: emailOrUsername.trim(),
-        password: password.trim(),
-      );
+      // 1. Cho phép AuthService đăng nhập Firebase Auth
+      await _authService.signIn(emailOrUsername: emailOrUsername, password: password);
+
+      // 2. --- TRẠM KIỂM SOÁT: KIỂM TRA TÀI KHOẢN CÓ BỊ KHÓA KHÔNG ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          final role = doc.data()?['role'];
+          if (role == 'blocked') {
+            // Nếu bị khóa -> Ép đăng xuất ngay lập tức
+            await FirebaseAuth.instance.signOut();
+            state = const AsyncData(null);
+            return 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!';
+          }
+        }
+      }
+      // -------------------------------------------------------------
 
       state = const AsyncData(null);
-
       return null;
     } on AuthException catch (e, stackTrace) {
       state = AsyncError(e, stackTrace);
       return e.message;
-    } catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return 'Đăng nhập thất bại.';
+    } catch (e) {
+      state = const AsyncData(null);
+      return 'Lỗi đăng nhập hệ thống: $e';
     }
   }
-
-  // =========================================================
-  // GOOGLE LOGIN
-  // =========================================================
 
   Future<String?> loginWithGoogle() async {
+    state = const AsyncLoading();
+
+    try {
+      // 1. Cho phép AuthService đăng nhập Google
+      await _authService.signInWithGoogle();
+
+      // 2. --- TRẠM KIỂM SOÁT DÀNH CHO GOOGLE ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          final role = doc.data()?['role'];
+          if (role == 'blocked') {
+            // Nếu bị khóa -> Ép đăng xuất ngay lập tức
+            await FirebaseAuth.instance.signOut();
+            state = const AsyncData(null);
+            return 'Tài khoản Google này đã bị hệ thống khóa!';
+          }
+        }
+      }
+      // -----------------------------------------
+
+      state = const AsyncData(null);
+      return null;
+    } on AuthException catch (e, stackTrace) {
+      state = AsyncError(e, stackTrace);
+      return e.message;
+    } catch (e) {
+      state = const AsyncData(null);
+      return 'Lỗi đăng nhập Google: $e';
+    }
+  }
+
+  Future<String?> forgotPassword({required String emailOrUsername}) async {
     if (state.isLoading) return 'Đang xử lý, vui lòng chờ.';
 
     state = const AsyncLoading();
 
     try {
-      await _authService.signInWithGoogle();
-
+      await _authService.sendPasswordResetEmail(emailOrUsername.trim());
       state = const AsyncData(null);
-
       return null;
     } on AuthException catch (e, stackTrace) {
       state = AsyncError(e, stackTrace);
       return e.message;
-    } catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return 'Google Sign-In thất bại.';
     }
   }
-
-  // =========================================================
-  // REGISTER
-  // =========================================================
 
   Future<String?> register({
     required String email,
@@ -83,16 +111,14 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     String city = '',
     String district = '',
   }) async {
-    if (state.isLoading) return 'Đang xử lý, vui lòng chờ.';
-
     state = const AsyncLoading();
 
     try {
       await _authService.signUp(
-        email: email.trim(),
-        password: password.trim(),
-        displayName: displayName.trim(),
-        username: username.trim(),
+        email: email,
+        password: password,
+        displayName: displayName,
+        username: username,
         city: city.trim(),
         district: district.trim(),
       );
@@ -107,107 +133,5 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
       state = AsyncError(e, stackTrace);
       return 'Đăng ký thất bại.';
     }
-  }
-
-  // =========================================================
-  // FORGOT PASSWORD
-  // =========================================================
-
-  Future<String?> forgotPassword({
-    required String emailOrUsername,
-  }) async {
-    if (state.isLoading) return 'Đang xử lý, vui lòng chờ.';
-
-    state = const AsyncLoading();
-
-    try {
-      await _authService.sendPasswordResetEmail(
-        emailOrUsername.trim(),
-      );
-
-      state = const AsyncData(null);
-
-      return null;
-    } on AuthException catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return e.message;
-    } catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return 'Không thể gửi email khôi phục.';
-    }
-  }
-
-  // =========================================================
-  // LOGOUT
-  // =========================================================
-
-  Future<String?> logout() async {
-    if (state.isLoading) return 'Đang xử lý, vui lòng chờ.';
-
-    state = const AsyncLoading();
-
-    try {
-      await _authService.signOut();
-
-      state = const AsyncData(null);
-
-      return null;
-    } on AuthException catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return e.message;
-    } catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return 'Đăng xuất thất bại.';
-    }
-  }
-
-  // =========================================================
-  // DELETE ACCOUNT
-  // =========================================================
-
-  Future<String?> deleteAccount() async {
-    if (state.isLoading) return 'Đang xử lý, vui lòng chờ.';
-
-    state = const AsyncLoading();
-
-    try {
-      await _authService.deleteAccount();
-
-      state = const AsyncData(null);
-
-      return null;
-    } on AuthException catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return e.message;
-    } catch (e, stackTrace) {
-      state = AsyncError(e, stackTrace);
-      return 'Xóa tài khoản thất bại.';
-    }
-  }
-
-  // =========================================================
-  // RESET STATE
-  // =========================================================
-
-  void resetState() {
-    state = const AsyncData(null);
-  }
-
-  // =========================================================
-  // GETTERS
-  // =========================================================
-
-  bool get isLoading => state.isLoading;
-
-  bool get hasError => state.hasError;
-
-  String? get errorMessage {
-    final error = state.error;
-
-    if (error is AuthException) {
-      return error.message;
-    }
-
-    return null;
   }
 }

@@ -42,10 +42,10 @@ class AdminUserRepository {
         snapshot.docs.map((doc) => UserModel.fromDocument(doc)).toList());
   }
 
-  // Cập nhật trạng thái Hoạt động/Bị khóa của người dùng
-  Future<void> toggleUserStatus(String uid, bool currentStatus) async {
-    await _db.collection('users').doc(uid).update({
-      'isActive': !currentStatus,
-    });
-  }
+// Cập nhật trạng thái Hoạt động/Bị khóa của người dùng
+Future<void> toggleUserStatus(String uid, bool currentStatus) async {
+await _db.collection('users').doc(uid).update({
+'role': currentStatus ? 'blocked' : 'user',
+});
+}
 }
