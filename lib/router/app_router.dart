@@ -22,6 +22,7 @@ class AppRouter {
   static const String leaderboard = '/leaderboard';
   static const String greenMap = '/green-map';
   static const String rewardWallet = '/reward-wallet';
+  static const String admin = '/admin';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -59,6 +60,8 @@ class AppRouter {
         return MaterialPageRoute<void>(
           builder: (_) => const RewardWalletScreen(),
         );
+      case admin:
+        return MaterialPageRoute(builder: (_) => const AdminMainScreen());
       case login:
       default:
         // return MaterialPageRoute<void>(builder: (_) => const AdminMainScreen());
