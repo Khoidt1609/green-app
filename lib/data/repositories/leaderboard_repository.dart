@@ -7,93 +7,129 @@ import '../models/leaderboard_model.dart';
 
 class LeaderboardRepository {
   LeaderboardRepository(this._firestore);
+
   final FirebaseFirestore _firestore;
 
-  /// Firestore không cho phép orderBy(fieldA) + where(fieldB) trên 2 field khác nhau
-  /// mà không có composite index.
-  /// Chiến lược:
-  ///   - Không filter → orderBy trên Firestore (tối ưu, limit 50)
-  ///   - Có filter    → where trên Firestore, sort + limit client-side
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _firestore.collection('users');
+
   Future<List<LeaderboardEntry>> getLeaderboard({
     required LeaderboardPeriod period,
     required LeaderboardScope scope,
     String? filterValue,
+    int limit = 50,
   }) async {
     final pointsField = period.pointsField;
 
-    QuerySnapshot<Map<String, dynamic>> snapshot;
+    Query<Map<String, dynamic>> query = _users;
 
-    if (filterValue == null || filterValue.isEmpty) {
-      snapshot = await _firestore
-          .collection('users')
-          .orderBy(pointsField, descending: true)
-          .limit(50)
-          .get();
-    } else {
-      snapshot = await _firestore
-          .collection('users')
-          .where(scope.filterField, isEqualTo: filterValue)
-          .get();
+    if (filterValue != null && filterValue.trim().isNotEmpty) {
+      query = query.where(
+        scope.filterField,
+        isEqualTo: filterValue.trim(),
+      );
     }
 
-    final rawList = <Map<String, dynamic>>[];
+    final snapshot = await query.get();
+
+    final raw = <Map<String, dynamic>>[];
+
     for (final doc in snapshot.docs) {
       final data = doc.data();
-      if (!data.containsKey('weekPoints') && !data.containsKey('monthPoints')) {
-        continue;
-      }
+
+      final pts = (data[pointsField] as num?)?.toInt() ?? 0;
+
+      if (pts <= 0) continue;
+
       data['uid'] = doc.id;
-      rawList.add(data);
+
+      raw.add(data);
     }
 
-    if (filterValue != null && filterValue.isNotEmpty) {
-      rawList.sort((a, b) {
-        final pa = (a[pointsField] as num?)?.toInt() ?? 0;
-        final pb = (b[pointsField] as num?)?.toInt() ?? 0;
-        return pb.compareTo(pa);
-      });
-    }
+    raw.sort((a, b) {
+      final pa = (a[pointsField] as num?)?.toInt() ?? 0;
+      final pb = (b[pointsField] as num?)?.toInt() ?? 0;
 
-    final limited = rawList.take(50).toList();
-    return [
-      for (int i = 0; i < limited.length; i++)
-        LeaderboardEntry.fromMap(limited[i], i + 1, period),
-    ];
+      if (pa == pb) {
+        final an = (a['displayName'] ?? '').toString();
+        final bn = (b['displayName'] ?? '').toString();
+
+        return an.compareTo(bn);
+      }
+
+      return pb.compareTo(pa);
+    });
+
+    final limited = raw.take(limit).toList();
+
+    return List.generate(
+      limited.length,
+      (i) => LeaderboardEntry.fromMap(
+        limited[i],
+        i + 1,
+        period,
+      ),
+    );
   }
 
   Future<List<String>> getDistricts() async {
-    final snapshot = await _firestore.collection('users').get();
+    final snapshot = await _users.get();
+
     final result = <String>{};
+
     for (final doc in snapshot.docs) {
       final data = doc.data();
+
       final address = data['address'];
+
       if (address is Map<String, dynamic>) {
-        final d = (address['district'] as String?)?.trim();
-        if (d != null && d.isNotEmpty) result.add(d);
+        final district =
+            (address['district'] as String?)?.trim();
+
+        if (district != null && district.isNotEmpty) {
+          result.add(district);
+        }
       }
-      final flat = (data['district'] as String?)?.trim();
-      if (flat != null && flat.isNotEmpty) result.add(flat);
     }
-    return result.toList()..sort();
+
+    final list = result.toList();
+
+    list.sort();
+
+    return list;
   }
 
   Future<List<String>> getCities() async {
-    final snapshot = await _firestore.collection('users').get();
+    final snapshot = await _users.get();
+
     final result = <String>{};
+
     for (final doc in snapshot.docs) {
       final data = doc.data();
+
       final address = data['address'];
+
       if (address is Map<String, dynamic>) {
-        final c = (address['city'] as String?)?.trim();
-        if (c != null && c.isNotEmpty) result.add(c);
+        final city =
+            (address['city'] as String?)?.trim();
+
+        if (city != null && city.isNotEmpty) {
+          result.add(city);
+        }
       }
-      final flat = (data['city'] as String?)?.trim();
-      if (flat != null && flat.isNotEmpty) result.add(flat);
     }
-    return result.toList()..sort();
+
+    final list = result.toList();
+
+    list.sort();
+
+    return list;
   }
 }
 
-final leaderboardRepositoryProvider = Provider<LeaderboardRepository>((ref) {
-  return LeaderboardRepository(FirebaseFirestore.instance);
+final leaderboardRepositoryProvider =
+    Provider<LeaderboardRepository>((ref) {
+  return LeaderboardRepository(
+    FirebaseFirestore.instance,
+  );
 });
