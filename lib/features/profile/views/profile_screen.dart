@@ -96,13 +96,14 @@ class _ProfileScreenState
             .trim()
         : fallbackUsername;
 
-    final address = data?['address'] as Map<String, dynamic>?;
+
+final address = data?['address'] as Map<String, dynamic>? ?? {};
 
 _cityController.text =
-    (address?['city'] as String?)?.trim() ?? '';
+    (address['city'] as String?)?.trim() ?? '';
 
 _districtController.text =
-    (address?['district'] as String?)?.trim() ?? '';
+    (address['district'] as String?)?.trim() ?? '';
 
     _avatarUrl =
         (data?['avatarUrl'] as String?)

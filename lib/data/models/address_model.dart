@@ -2,10 +2,14 @@ class AddressModel {
   final String district;
   final String city;
 
-  AddressModel({
+  const AddressModel({
     required this.district,
     required this.city,
   });
+
+  // =========================================================
+  // COPY WITH
+  // =========================================================
 
   AddressModel copyWith({
     String? district,
@@ -17,16 +21,73 @@ class AddressModel {
     );
   }
 
-  Map<String, dynamic> toMap() => {
-    'district': district,
-    'city': city,
-  };
+  // =========================================================
+  // TO MAP
+  // =========================================================
+
+  Map<String, dynamic> toMap() {
+    return {
+      'district': district.trim(),
+      'city': city.trim(),
+    };
+  }
+
+  // =========================================================
+  // FROM MAP
+  // =========================================================
 
   factory AddressModel.fromMap(Map<String, dynamic>? map) {
-    if (map == null) return AddressModel(district: '', city: '');
+    if (map == null) {
+      return AddressModel.empty();
+    }
+
     return AddressModel(
-      district: map['district'] ?? '',
-      city: map['city'] ?? '',
+      district: (map['district'] ?? '').toString(),
+      city: (map['city'] ?? '').toString(),
     );
+  }
+
+  // =========================================================
+  // EMPTY
+  // =========================================================
+
+  factory AddressModel.empty() {
+    return const AddressModel(
+      district: '',
+      city: '',
+    );
+  }
+
+  // =========================================================
+  // HELPERS
+  // =========================================================
+
+  bool get isEmpty =>
+      district.trim().isEmpty && city.trim().isEmpty;
+
+  bool get isNotEmpty => !isEmpty;
+
+  String get fullAddress {
+    if (district.trim().isEmpty && city.trim().isEmpty) {
+      return '';
+    }
+
+    if (district.trim().isEmpty) {
+      return city;
+    }
+
+    if (city.trim().isEmpty) {
+      return district;
+    }
+
+    return '$district, $city';
+  }
+
+  @override
+  String toString() {
+    return 'AddressModel('
+        'district: $district, '
+        'city: $city'
+        ')';
   }
 }
