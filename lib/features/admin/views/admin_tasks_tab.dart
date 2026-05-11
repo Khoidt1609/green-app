@@ -4,7 +4,8 @@ import 'package:green_app/features/admin/views/task_form_bottom_sheet.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/task_model.dart';
 import '../providers/tasks_provider.dart';
-import '../viewmodels/admin_task_viewmodel.dart'; // Chú ý: Đảm bảo import đúng đường dẫn provider của bạn
+import '../viewmodels/admin_task_viewmodel.dart';
+import '../widgets/stat_card.dart'; // Chú ý: Đảm bảo import đúng đường dẫn provider của bạn
 
 class AdminTasksTab extends ConsumerWidget {
   const AdminTasksTab({super.key});
@@ -12,40 +13,102 @@ class AdminTasksTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasksAsync = ref.watch(searchTasksProvider);
+    final allTasksAsync = ref.watch(adminTasksStreamProvider);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
-            //  Thanh Tìm kiếm & Nút Thêm mới
             _buildTopBar(context, ref),
 
-            // Danh sách Task dạng Card
             Expanded(
-              child: tasksAsync.when(
-                data: (tasks) {
-                  if (tasks.isEmpty) {
-                    return const Center(child: Text("Chưa có nhiệm vụ nào."));
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    allTasksAsync.when(
+                      data: (tasks) => _buildTaskStats(tasks),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: LinearProgressIndicator(color: AppColors.primaryGreen)),
+                      ),
+                      error: (err, stack) => Text("Lỗi thống kê: $err"),
                     ),
-                    itemCount: tasks.length,
-                    itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      return _buildTaskCard(context, ref, task);
-                    },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text("Lỗi: $err")),
+
+                    const SizedBox(height: 8),
+
+                    tasksAsync.when(
+                      data: (tasks) {
+                        if (tasks.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 40),
+                            child: Center(child: Text("Không tìm thấy nhiệm vụ nào.")),
+                          );
+                        }
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: tasks.length,
+                          itemBuilder: (context, index) {
+                            final task = tasks[index];
+                            return _buildTaskCard(context, ref, task);
+                          },
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(top: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (err, stack) => Center(child: Text("Lỗi: $err")),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTaskStats(List<TaskModel> tasks) {
+    //đếm số lượng từ danh sách đã tải về
+    final total = tasks.length;
+    final active = tasks.where((t) => t.isActive).length;
+    final inactive = total - active;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: StatCard(
+              icon: Icons.eco, // Icon tổng quan
+              color: AppColors.primaryDarkGreen,
+              value: total.toString(),
+              label: 'Tổng số',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: StatCard(
+              icon: Icons.play_circle_outline,
+              color: AppColors.primaryGreen,
+              value: active.toString(),
+              label: 'Đang hiện',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: StatCard(
+              icon: Icons.pause_circle_outline,
+              color: Colors.grey,
+              value: inactive.toString(),
+              label: 'Đã ẩn',
+            ),
+          ),
+        ],
       ),
     );
   }

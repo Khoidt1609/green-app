@@ -5,7 +5,10 @@ class AdminRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Stream<List<SubmissionModel>> getSubmissions(String statusFilter) {
-    Query query = _db.collection('submissions').orderBy('createdAt', descending: true);
+    // final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+    Query query =_db.collection('submissions')
+        // .where('createdAt', isGreaterThan: thirtyDaysAgo)
+        .orderBy('createdAt', descending: true);
 
     if (statusFilter != 'all') {
       query = query.where('status', isEqualTo: statusFilter);

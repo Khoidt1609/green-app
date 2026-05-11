@@ -17,6 +17,12 @@ final submissionsStreamProvider = StreamProvider<List<SubmissionModel>>((ref) {
   final status = ref.watch(statusFilterProvider);
   return repo.getSubmissions(status);
 });
+// Lấy toàn bộ bài nộp không lọc
+final allSubmissionsStreamProvider = StreamProvider<List<SubmissionModel>>((ref) {
+  final repo = ref.watch(adminRepoProvider);
+  return repo.getSubmissions('all');
+});
+
 
 final filteredSubmissionsProvider = Provider<AsyncValue<List<SubmissionModel>>>((ref) {
   final asyncList = ref.watch(submissionsStreamProvider);
