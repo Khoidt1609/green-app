@@ -27,4 +27,24 @@ class AppTextStyles {
     fontWeight: FontWeight.normal,
     color: AppColors.textSecondary,
   );
+
+  static const TextStyle headingWhite = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    color: AppColors.textPrimaryLight, // Màu trắng
+  );
+
+  static const TextStyle bodyWhite = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textPrimaryLight,
+  );
+
+  // Caption dùng cho ngày tháng, ghi chú nhỏ
+  static const TextStyle captionWhite  = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textSecondary,
+  );
+
 }

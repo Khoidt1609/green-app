@@ -10,12 +10,11 @@ class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  ConsumerState<ProfileScreen> createState() =>
-      _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState
-    extends ConsumerState<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  String _role = 'user';
   static const List<String> _avatarGallery = [
     'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
@@ -25,17 +24,13 @@ class _ProfileScreenState
     'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400&h=400&fit=crop',
   ];
 
-  final _nameController =
-      TextEditingController();
+  final _nameController = TextEditingController();
 
-  final _usernameController =
-      TextEditingController();
+  final _usernameController = TextEditingController();
 
-  final _cityController =
-      TextEditingController();
+  final _cityController = TextEditingController();
 
-  final _districtController =
-      TextEditingController();
+  final _districtController = TextEditingController();
 
   bool _isSaving = false;
   bool _isLoading = true;
@@ -64,99 +59,63 @@ class _ProfileScreenState
   }
 
   Future<void> _loadProfile() async {
-    final authService =
-        ref.read(authServiceProvider);
+    final authService = ref.read(authServiceProvider);
 
     final user = authService.currentUser;
 
-    final data =
-        await authService.getCurrentUserProfile();
+    final data = await authService.getCurrentUserProfile();
 
     if (!mounted) {
       return;
     }
 
-    final fallbackUsername =
-        user?.email?.split('@').first ??
-        'user';
+    setState(() {
+      _role = data?['role']?.toString() ?? 'user';
+    });
+
+    final fallbackUsername = user?.email?.split('@').first ?? 'user';
 
     _nameController.text =
-        (data?['displayName'] as String?)
-            ?.trim() ??
-        (data?['fullName'] as String?)
-            ?.trim() ??
+        (data?['displayName'] as String?)?.trim() ??
+        (data?['fullName'] as String?)?.trim() ??
         '';
 
     _usernameController.text =
-            (data?['username'] as String?)
-                    ?.trim()
-                    .isNotEmpty ==
-                true
-        ? (data!['username'] as String)
-            .trim()
+        (data?['username'] as String?)?.trim().isNotEmpty == true
+        ? (data!['username'] as String).trim()
         : fallbackUsername;
 
 
 final address = data?['address'] as Map<String, dynamic>? ?? {};
 
-_cityController.text =
-    (address['city'] as String?)?.trim() ?? '';
+    _cityController.text = (address?['city'] as String?)?.trim() ?? '';
 
-_districtController.text =
-    (address['district'] as String?)?.trim() ?? '';
+    _districtController.text = (address?['district'] as String?)?.trim() ?? '';
 
-    _avatarUrl =
-        (data?['avatarUrl'] as String?)
-            ?.trim();
+    _avatarUrl = (data?['avatarUrl'] as String?)?.trim();
 
-    _totalPoints =
-        (data?['totalPoints'] as num?)
-                ?.toInt() ??
-            0;
+    _totalPoints = (data?['totalPoints'] as num?)?.toInt() ?? 0;
 
-    _weeklyPoints =
-        (data?['weekPoints'] as num?)
-                ?.toInt() ??
-            0;
+    _weeklyPoints = (data?['weekPoints'] as num?)?.toInt() ?? 0;
 
-    _monthlyPoints =
-        (data?['monthPoints'] as num?)
-                ?.toInt() ??
-            0;
+    _monthlyPoints = (data?['monthPoints'] as num?)?.toInt() ?? 0;
 
     setState(() {
       _isLoading = false;
     });
   }
 
-  Future<void> _saveProfile({
-    bool showSuccess = true,
-  }) async {
-    if (_nameController.text
-        .trim()
-        .isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng nhập họ tên.',
-          ),
-        ),
-      );
+  Future<void> _saveProfile({bool showSuccess = true}) async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng nhập họ tên.')));
       return;
     }
 
-    if (_usernameController.text
-            .trim()
-            .length <
-        3) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Tên đăng nhập tối thiểu 3 ký tự.',
-          ),
-        ),
+    if (_usernameController.text.trim().length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tên đăng nhập tối thiểu 3 ký tự.')),
       );
       return;
     }
@@ -165,15 +124,14 @@ _districtController.text =
       _isSaving = true;
     });
 
-    final authService =
-        ref.read(authServiceProvider);
+    final authService = ref.read(authServiceProvider);
 
     try {
       await authService.updateProfile(
         displayName: _nameController.text,
-        username:_usernameController.text,
+        username: _usernameController.text,
         city: _cityController.text,
-        district:_districtController.text,
+        district: _districtController.text,
         avatarUrl: _avatarUrl,
       );
 
@@ -182,24 +140,18 @@ _districtController.text =
       }
 
       if (showSuccess) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Đã cập nhật hồ sơ.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ.')));
       }
     } on AuthException catch (e) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) {
         setState(() {
@@ -211,81 +163,55 @@ _districtController.text =
 
   Future<void> _editField({
     required String title,
-    required TextEditingController
-        controller,
+    required TextEditingController controller,
     String? hint,
-    TextInputType keyboardType =
-        TextInputType.text,
+    TextInputType keyboardType = TextInputType.text,
   }) async {
-    final newValue =
-        await showDialog<String>(
+    final newValue = await showDialog<String>(
       context: context,
       builder: (context) {
         return _EditFieldDialog(
           title: title,
-          initialValue:
-              controller.text,
+          initialValue: controller.text,
           hint: hint,
-          keyboardType:
-              keyboardType,
+          keyboardType: keyboardType,
         );
       },
     );
 
-    if (!mounted ||
-        newValue == null) {
+    if (!mounted || newValue == null) {
       return;
     }
 
     setState(() {
-      controller.text =
-          newValue.trim();
+      controller.text = newValue.trim();
     });
   }
 
-  Future<void>
-      _pickAvatarFromGallery() async {
-    final selected =
-        await showModalBottomSheet<String>(
+  Future<void> _pickAvatarFromGallery() async {
+    final selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding:
-                const EdgeInsets.all(
-              16,
-            ),
+            padding: const EdgeInsets.all(16),
             child: GridView.builder(
-              itemCount:
-                  _avatarGallery.length,
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              itemCount: _avatarGallery.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
-              itemBuilder:
-                  (context, index) {
-                final url =
-                    _avatarGallery[index];
+              itemBuilder: (context, index) {
+                final url = _avatarGallery[index];
 
                 return InkWell(
-                  onTap:
-                      () =>
-                          Navigator.of(
-                            context,
-                          ).pop(url),
+                  onTap: () => Navigator.of(context).pop(url),
                   child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
-                    ),
-                    child: Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(url, fit: BoxFit.cover),
                   ),
                 );
               },
@@ -295,8 +221,7 @@ _districtController.text =
       },
     );
 
-    if (!mounted ||
-        selected == null) {
+    if (!mounted || selected == null) {
       return;
     }
 
@@ -304,30 +229,20 @@ _districtController.text =
       _avatarUrl = selected;
     });
 
-    await _saveProfile(
-      showSuccess: false,
-    );
+    await _saveProfile(showSuccess: false);
 
     if (!mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Đã cập nhật avatar.',
-        ),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Đã cập nhật avatar.')));
   }
 
-  Future<void>
-      _signOutAndGoToLogin() async {
+  Future<void> _signOutAndGoToLogin() async {
     try {
-      await ref
-          .read(authServiceProvider)
-          .signOut();
+      await ref.read(authServiceProvider).signOut();
 
       if (!mounted) {
         return;
@@ -336,15 +251,11 @@ _districtController.text =
       Navigator.of(
         context,
         rootNavigator: true,
-      ).pushNamedAndRemoveUntil(
-        AppRouter.login,
-        (route) => false,
-      );
+      ).pushNamedAndRemoveUntil(AppRouter.login, (route) => false);
     } on AuthException catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -355,34 +266,22 @@ _districtController.text =
 
     switch (index) {
       case 0:
-        Navigator.of(context)
-            .pushReplacementNamed(
-          AppRouter.home,
-        );
+        Navigator.of(context).pushReplacementNamed(AppRouter.home);
         break;
       case 1:
-      Navigator.of(
-        context,
-      ).pushReplacementNamed(AppRouter.leaderboard);
-      break;
+        Navigator.of(context).pushReplacementNamed(AppRouter.leaderboard);
+        break;
 
       case 2:
-        Navigator.of(context)
-            .pushReplacementNamed(
-          AppRouter.tasks,
-        );
+        Navigator.of(context).pushReplacementNamed(AppRouter.tasks);
         break;
       case 3:
-      Navigator.of(
-        context,
-      ).pushReplacementNamed(AppRouter.greenMap);
-      break;
+        Navigator.of(context).pushReplacementNamed(AppRouter.greenMap);
+        break;
 
-    case 4:
-      Navigator.of(
-        context,
-      ).pushReplacementNamed(AppRouter.rewardWallet);
-      break;
+      case 4:
+        Navigator.of(context).pushReplacementNamed(AppRouter.rewardWallet);
+        break;
 
       default:
         break;
@@ -391,94 +290,49 @@ _districtController.text =
 
   @override
   Widget build(BuildContext context) {
-    final user =
-        ref
-            .watch(authServiceProvider)
-            .currentUser;
+    final user = ref.watch(authServiceProvider).currentUser;
 
-    final displayUsername =
-        _usernameController.text
-                .trim()
-                .isNotEmpty
-            ? _usernameController.text
-                .trim()
-            : (user?.email
-                    ?.split('@')
-                    .first ??
-                'user');
+    final displayUsername = _usernameController.text.trim().isNotEmpty
+        ? _usernameController.text.trim()
+        : (user?.email?.split('@').first ?? 'user');
 
-    final displayName =
-        _nameController.text
-                .trim()
-                .isNotEmpty
-            ? _nameController.text
-                .trim()
-            : displayUsername;
+    final displayName = _nameController.text.trim().isNotEmpty
+        ? _nameController.text.trim()
+        : displayUsername;
 
-    final avatarInitial =
-        displayUsername.isNotEmpty
-            ? displayUsername[0]
-                .toUpperCase()
-            : 'U';
+    final avatarInitial = displayUsername.isNotEmpty
+        ? displayUsername[0].toUpperCase()
+        : 'U';
 
-    final weeklyProgress =
-        ((_weeklyPoints / 600)
-                .clamp(0, 1))
-            .toDouble();
+    final weeklyProgress = ((_weeklyPoints / 600).clamp(0, 1)).toDouble();
 
     return Scaffold(
-      backgroundColor:
-          AppColors.backgroundLight,
+      backgroundColor: AppColors.backgroundLight,
 
       appBar: AppBar(
-        title: const Text(
-          'Hồ sơ cá nhân',
-        ),
+        title: const Text('Hồ sơ cá nhân'),
         actions: [
           IconButton(
-            onPressed:
-                _signOutAndGoToLogin,
-            icon: const Icon(
-              Icons.logout_rounded,
-            ),
+            onPressed: _signOutAndGoToLogin,
+            icon: const Icon(Icons.logout_rounded),
           ),
         ],
       ),
 
       body: _isLoading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding:
-                  const EdgeInsets.all(
-                16,
-              ),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
                   Container(
                     width: double.infinity,
-                    padding:
-                        const EdgeInsets.all(
-                      16,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          AppColors
-                              .surfaceLight,
-                      borderRadius:
-                          BorderRadius.circular(
-                        18,
-                      ),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color:
-                            AppColors
-                                .primaryGreen
-                                .withOpacity(
-                          0.2,
-                        ),
+                        color: AppColors.primaryGreen.withOpacity(0.2),
                       ),
                     ),
                     child: Column(
@@ -487,72 +341,43 @@ _districtController.text =
                           children: [
                             CircleAvatar(
                               radius: 68,
-                              backgroundColor:
-                                  AppColors
-                                      .primaryGreen
-                                      .withOpacity(
-                                0.16,
-                              ),
+                              backgroundColor: AppColors.primaryGreen
+                                  .withOpacity(0.16),
                               backgroundImage:
-                                  _avatarUrl !=
-                                              null &&
-                                          _avatarUrl!
-                                              .isNotEmpty
-                                      ? NetworkImage(
-                                          _avatarUrl!,
-                                        )
-                                      : null,
-                              child:
-                                  (_avatarUrl ==
-                                              null ||
-                                          _avatarUrl!
-                                              .isEmpty)
-                                      ? Text(
-                                          avatarInitial,
-                                          style:
-                                              const TextStyle(
-                                            color:
-                                                AppColors.primaryDarkGreen,
-                                            fontSize:
-                                                44,
-                                            fontWeight:
-                                                FontWeight.w800,
-                                          ),
-                                        )
-                                      : null,
+                                  _avatarUrl != null && _avatarUrl!.isNotEmpty
+                                  ? NetworkImage(_avatarUrl!)
+                                  : null,
+                              child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                                  ? Text(
+                                      avatarInitial,
+                                      style: const TextStyle(
+                                        color: AppColors.primaryDarkGreen,
+                                        fontSize: 44,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    )
+                                  : null,
                             ),
                             Positioned(
                               right: 2,
                               bottom: 2,
-                              child:
-                                  InkWell(
-                                onTap:
-                                    _pickAvatarFromGallery,
-                                child:
-                                    Container(
+                              child: InkWell(
+                                onTap: _pickAvatarFromGallery,
+                                child: Container(
                                   width: 36,
                                   height: 36,
-                                  decoration:
-                                      BoxDecoration(
-                                    shape: BoxShape
-                                        .circle,
-                                    color:
-                                        AppColors.primaryGreen,
-                                    border:
-                                        Border.all(
-                                      color: Colors
-                                          .white,
-                                      width:
-                                          2,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primaryGreen,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
                                     ),
                                   ),
-                                  child:
-                                      const Icon(
-                                    Icons
-                                        .edit_outlined,
+                                  child: const Icon(
+                                    Icons.edit_outlined,
                                     size: 18,
-                                    color: Colors
-                                        .white,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
@@ -560,381 +385,244 @@ _districtController.text =
                           ],
                         ),
 
-                        const SizedBox(
-                          height: 14,
-                        ),
+                        const SizedBox(height: 14),
 
                         Text(
                           displayName,
-                          style:
-                              const TextStyle(
+                          style: const TextStyle(
                             fontSize: 22,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 4,
-                        ),
+                        const SizedBox(height: 4),
 
                         Text(
                           '@$displayUsername',
-                          style:
-                              const TextStyle(
-                            color:
-                                AppColors.textSecondary,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 12,
-                        ),
+                        const SizedBox(height: 12),
 
                         OutlinedButton.icon(
-                          onPressed:
-                              _pickAvatarFromGallery,
-                          icon:
-                              const Icon(
-                            Icons
-                                .collections_outlined,
-                          ),
-                          label:
-                              const Text(
-                            'Avatar mẫu',
-                          ),
+                          onPressed: _pickAvatarFromGallery,
+                          icon: const Icon(Icons.collections_outlined),
+                          label: const Text('Avatar mẫu'),
                         ),
 
-                        const SizedBox(
-                          height: 12,
-                        ),
+                        const SizedBox(height: 12),
 
                         SizedBox(
-                          width:
-                              double.infinity,
-                          child:
-                              FilledButton.icon(
-                            onPressed:
-                                _signOutAndGoToLogin,
-                            style:
-                                FilledButton.styleFrom(
-                              backgroundColor:
-                                  AppColors.error,
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: _signOutAndGoToLogin,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.error,
                             ),
-                            icon:
-                                const Icon(
-                              Icons
-                                  .logout_rounded,
-                            ),
-                            label:
-                                const Text(
-                              'Đăng xuất',
-                            ),
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text('Đăng xuất'),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        if (_role == 'admin')
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                Navigator.of(
+                                  context,
+                                ).pushNamed(AppRouter.admin);
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.primaryDarkGreen,
+                              ),
+                              icon: const Icon(Icons.admin_panel_settings),
+                              label: const Text('Admin'),
+                            ),
+                          ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
 
                   Container(
                     width: double.infinity,
-                    padding:
-                        const EdgeInsets.all(
-                      16,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      borderRadius:
-                          BorderRadius.circular(
-                        18,
-                      ),
-                      gradient:
-                          const LinearGradient(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
                         colors: [
-                          AppColors
-                              .primaryGreen,
-                          AppColors
-                              .primaryDarkGreen,
+                          AppColors.primaryGreen,
+                          AppColors.primaryDarkGreen,
                         ],
                       ),
                     ),
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Điểm của bạn',
                           style: TextStyle(
-                            color:
-                                Colors.white,
-                            fontWeight:
-                                FontWeight
-                                    .w600,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         Text(
                           '$_totalPoints điểm',
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors.white,
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 28,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 12,
-                        ),
+                        const SizedBox(height: 12),
 
                         Row(
                           children: [
                             Expanded(
-                              child:
-                                  _ScoreChip(
-                                label:
-                                    'Tuần',
-                                value:
-                                    '$_weeklyPoints/600',
+                              child: _ScoreChip(
+                                label: 'Tuần',
+                                value: '$_weeklyPoints/600',
                               ),
                             ),
-                            const SizedBox(
-                              width: 10,
-                            ),
+                            const SizedBox(width: 10),
                             Expanded(
-                              child:
-                                  _ScoreChip(
-                                label:
-                                    'Tháng',
-                                value:
-                                    '$_monthlyPoints/2000',
+                              child: _ScoreChip(
+                                label: 'Tháng',
+                                value: '$_monthlyPoints/2000',
                               ),
                             ),
                           ],
                         ),
 
-                        const SizedBox(
-                          height: 12,
-                        ),
+                        const SizedBox(height: 12),
 
                         ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(
-                            999,
-                          ),
-                          child:
-                              LinearProgressIndicator(
-                            value:
-                                weeklyProgress,
-                            minHeight:
-                                8,
-                            backgroundColor:
-                                Colors.white
-                                    .withOpacity(
-                              0.3,
-                            ),
-                            color:
-                                Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: weeklyProgress,
+                            minHeight: 8,
+                            backgroundColor: Colors.white.withOpacity(0.3),
+                            color: Colors.white,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
 
                   Container(
                     width: double.infinity,
-                    padding:
-                        const EdgeInsets.all(
-                      12,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          AppColors
-                              .surfaceLight,
-                      borderRadius:
-                          BorderRadius.circular(
-                        16,
-                      ),
-                      border: Border.all(
-                        color:
-                            AppColors
-                                .borderLight,
-                      ),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.borderLight),
                     ),
                     child: Column(
                       children: [
                         _ProfileInfoRow(
-                          label:
-                              'Họ và tên',
-                          value:
-                              _nameController
-                                  .text,
-                          hint:
-                              'Chưa cập nhật',
-                          onEdit:
-                              () => _editField(
-                            title:
-                                'Họ và tên',
-                            controller:
-                                _nameController,
+                          label: 'Họ và tên',
+                          value: _nameController.text,
+                          hint: 'Chưa cập nhật',
+                          onEdit: () => _editField(
+                            title: 'Họ và tên',
+                            controller: _nameController,
                           ),
                         ),
 
                         _ProfileInfoRow(
-                          label:
-                              'Tên đăng nhập',
-                          value:
-                              _usernameController
-                                  .text,
-                          hint:
-                              'Chưa cập nhật',
-                          onEdit:
-                              () => _editField(
-                            title:
-                                'Tên đăng nhập',
-                            controller:
-                                _usernameController,
+                          label: 'Tên đăng nhập',
+                          value: _usernameController.text,
+                          hint: 'Chưa cập nhật',
+                          onEdit: () => _editField(
+                            title: 'Tên đăng nhập',
+                            controller: _usernameController,
                           ),
                         ),
 
                         _ProfileInfoRow(
-                          label:
-                              'Tỉnh / Thành phố',
-                          value:
-                              _cityController
-                                  .text,
-                          hint:
-                              'Chưa cập nhật',
-                          onEdit:
-                              () => _editField(
-                            title:
-                                'Tỉnh / Thành phố',
-                            controller:
-                                _cityController,
+                          label: 'Tỉnh / Thành phố',
+                          value: _cityController.text,
+                          hint: 'Chưa cập nhật',
+                          onEdit: () => _editField(
+                            title: 'Tỉnh / Thành phố',
+                            controller: _cityController,
                           ),
                         ),
 
                         _ProfileInfoRow(
-                          label:
-                              'Quận / Huyện',
-                          value:
-                              _districtController
-                                  .text,
-                          hint:
-                              'Chưa cập nhật',
-                          onEdit:
-                              () => _editField(
-                            title:
-                                'Quận / Huyện',
-                            controller:
-                                _districtController,
+                          label: 'Quận / Huyện',
+                          value: _districtController.text,
+                          hint: 'Chưa cập nhật',
+                          onEdit: () => _editField(
+                            title: 'Quận / Huyện',
+                            controller: _districtController,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
 
                   SizedBox(
-                    width:
-                        double.infinity,
-                    child:
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                         FilledButton.icon(
-                      onPressed:
-                          _isSaving
-                              ? null
-                              : _saveProfile,
-                      icon:
-                          _isSaving
+                          onPressed: _isSaving ? null : _saveProfile,
+                          icon: _isSaving
                               ? const SizedBox(
-                                  width:
-                                      18,
-                                  height:
-                                      18,
-                                  child:
-                                      CircularProgressIndicator(
-                                    strokeWidth:
-                                        2,
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(
-                                  Icons
-                                      .save_outlined,
-                                ),
-                      label: Text(
-                        _isSaving
-                            ? 'Đang lưu...'
-                            : 'Lưu thay đổi',
-                      ),
+                              : const Icon(Icons.save_outlined),
+                          label: Text(
+                            _isSaving ? 'Đang lưu...' : 'Lưu thay đổi',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
 
-      bottomNavigationBar:
-          BottomNavigationBar(
-        currentIndex:
-            _currentTab,
-        onTap:
-            _onTapBottomNav,
-        type:
-            BottomNavigationBarType
-                .fixed,
-        selectedItemColor:
-            AppColors.primaryGreen,
-        unselectedItemColor:
-            AppColors.textSecondary,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentTab,
+        onTap: _onTapBottomNav,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primaryGreen,
+        unselectedItemColor: AppColors.textSecondary,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.home_rounded,
-            ),
+            icon: Icon(Icons.home_rounded),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.emoji_events_outlined,
-            ),
+            icon: Icon(Icons.emoji_events_outlined),
             label: 'Rank',
           ),
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.task_alt_outlined,
-            ),
+            icon: Icon(Icons.task_alt_outlined),
             label: 'Tasks',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Map'),
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.map_outlined,
-            ),
-            label: 'Map',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.person_outline,
-            ),
+            icon: Icon(Icons.person_outline),
             label: 'Profile',
           ),
         ],
@@ -943,8 +631,7 @@ _districtController.text =
   }
 }
 
-class _ProfileInfoRow
-    extends StatelessWidget {
+class _ProfileInfoRow extends StatelessWidget {
   const _ProfileInfoRow({
     required this.label,
     required this.value,
@@ -960,47 +647,30 @@ class _ProfileInfoRow
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding:
-          EdgeInsets.zero,
+      contentPadding: EdgeInsets.zero,
       title: Text(
         label,
-        style: const TextStyle(
-          fontSize: 13,
-          color:
-              AppColors.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
       ),
       subtitle: Text(
-        value.trim().isEmpty
-            ? hint
-            : value.trim(),
+        value.trim().isEmpty ? hint : value.trim(),
         style: TextStyle(
-          fontWeight:
-              FontWeight.w700,
-          color:
-              value.trim().isEmpty
-                  ? AppColors
-                      .textSecondary
-                  : AppColors
-                      .textPrimary,
+          fontWeight: FontWeight.w700,
+          color: value.trim().isEmpty
+              ? AppColors.textSecondary
+              : AppColors.textPrimary,
         ),
       ),
       trailing: IconButton(
         onPressed: onEdit,
-        icon: const Icon(
-          Icons.edit_outlined,
-        ),
+        icon: const Icon(Icons.edit_outlined),
       ),
     );
   }
 }
 
-class _ScoreChip
-    extends StatelessWidget {
-  const _ScoreChip({
-    required this.label,
-    required this.value,
-  });
+class _ScoreChip extends StatelessWidget {
+  const _ScoreChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1008,41 +678,24 @@ class _ScoreChip
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
-        color: Colors.white
-            .withOpacity(0.18),
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withOpacity(0.18),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style:
-                const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
-          const SizedBox(
-            height: 4,
-          ),
+          const SizedBox(height: 4),
           Text(
             value,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               color: Colors.white,
-              fontWeight:
-                  FontWeight.w700,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1051,8 +704,7 @@ class _ScoreChip
   }
 }
 
-class _EditFieldDialog
-    extends StatefulWidget {
+class _EditFieldDialog extends StatefulWidget {
   const _EditFieldDialog({
     required this.title,
     required this.initialValue,
@@ -1066,27 +718,17 @@ class _EditFieldDialog
   final TextInputType keyboardType;
 
   @override
-  State<_EditFieldDialog>
-      createState() =>
-          _EditFieldDialogState();
+  State<_EditFieldDialog> createState() => _EditFieldDialogState();
 }
 
-class _EditFieldDialogState
-    extends State<
-      _EditFieldDialog
-    > {
-  late final TextEditingController
-  _controller;
+class _EditFieldDialogState extends State<_EditFieldDialog> {
+  late final TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
 
-    _controller =
-        TextEditingController(
-      text:
-          widget.initialValue,
-    );
+    _controller = TextEditingController(text: widget.initialValue);
   }
 
   @override
@@ -1096,43 +738,22 @@ class _EditFieldDialogState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        'Sửa ${widget.title}',
-      ),
+      title: Text('Sửa ${widget.title}'),
       content: TextField(
-        controller:
-            _controller,
-        keyboardType:
-            widget.keyboardType,
-        decoration:
-            InputDecoration(
-          hintText:
-              widget.hint,
-        ),
+        controller: _controller,
+        keyboardType: widget.keyboardType,
+        decoration: InputDecoration(hintText: widget.hint),
       ),
       actions: [
         TextButton(
-          onPressed:
-              () =>
-                  Navigator.of(
-                    context,
-                  ).pop(),
-          child:
-              const Text('Hủy'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Hủy'),
         ),
         FilledButton(
-          onPressed:
-              () => Navigator.of(
-                context,
-              ).pop(
-                _controller.text,
-              ),
-          child:
-              const Text('Lưu'),
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Lưu'),
         ),
       ],
     );

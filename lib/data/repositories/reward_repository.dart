@@ -16,9 +16,9 @@ class RewardRepository {
   String get _uid => _auth.currentUser!.uid;
 
   // ── Rewards list ─────────────────────────────
-  Future<List<RewardItem>> getRewards() async {
+  Future<List<RewardModel>> getRewards() async {
     final snapshot = await _firestore.collection('rewards').get();
-    return snapshot.docs.map(RewardItem.fromDoc).toList()
+    return snapshot.docs.map(RewardModel.fromDoc).toList()
       ..sort((a, b) => a.pointCost.compareTo(b.pointCost));
   }
 
@@ -33,7 +33,7 @@ class RewardRepository {
 
   // ── Redeem a reward ──────────────────────────
   Future<void> redeemReward({
-    required RewardItem reward,
+    required RewardModel reward,
     required Map<String, String> bankDetails,
     required String userName,
   }) async {

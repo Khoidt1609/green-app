@@ -1,6 +1,6 @@
-// lib/router/app_router.dart
-
 import 'package:flutter/material.dart';
+import 'package:green_app/features/admin/views/admin_main_screen.dart';
+
 import '../features/auth/views/login_screen.dart';
 import '../features/auth/views/onboarding_screen.dart';
 import '../features/auth/views/register_screen.dart';
@@ -22,6 +22,7 @@ class AppRouter {
   static const String leaderboard = '/leaderboard';
   static const String greenMap = '/green-map';
   static const String rewardWallet = '/reward-wallet';
+  static const String admin = '/admin';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -59,8 +60,11 @@ class AppRouter {
         return MaterialPageRoute<void>(
           builder: (_) => const RewardWalletScreen(),
         );
+      case admin:
+        return MaterialPageRoute(builder: (_) => const AdminMainScreen());
       case login:
       default:
+        // return MaterialPageRoute<void>(builder: (_) => const AdminMainScreen());
         return MaterialPageRoute<void>(
           builder: (_) => const LoginScreen(),
         );
