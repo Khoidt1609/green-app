@@ -68,21 +68,44 @@ class UserModel {
     };
   }
 
-  factory UserModel.fromDocument(DocumentSnapshot doc) {
-    final map = doc.data() as Map<String, dynamic>? ?? {};
-    return UserModel(
-      uid: doc.id,
-      displayName: map['displayName'] ?? 'Người dùng',
-      email: map['email'] ?? '',
-      address: AddressModel.fromMap(map['address'] as Map<String, dynamic>?),
-      totalPoints: map['totalPoints']?.toInt() ?? 0,
-      currentPoints: map['currentPoints']?.toInt() ?? 0,
-      weekPoints: map['weekPoints']?.toInt() ?? 0,
-      monthPoints: map['monthPoints']?.toInt() ?? 0,
-      role: map['role'] ?? 'user',
-      bankInfo: map['bankInfo'] != null
-          ? BankInfoModel.fromMap(map['bankInfo'] as Map<String, dynamic>)
-          : null,
-    );
-  }
+factory UserModel.fromDocument(DocumentSnapshot doc) {
+final map = doc.data() as Map<String, dynamic>? ?? {};
+
+AddressModel parsedAddress = AddressModel(district: '', city: '');
+final addressRaw = map['address'];
+
+if (addressRaw is Map<String, dynamic>) {
+parsedAddress = AddressModel.fromMap(addressRaw);
+} else if (addressRaw is List && addressRaw.isNotEmpty) {
+String d = '';
+String c = '';
+if (addressRaw[0] is String) d = addressRaw[0];
+if (addressRaw.length > 1 && addressRaw[1] is String) c = addressRaw[1];
+parsedAddress = AddressModel(district: d, city: c);
+} else if (addressRaw is String) {
+parsedAddress = AddressModel(district: addressRaw, city: '');
+}
+
+BankInfoModel? parsedBankInfo;
+final bankRaw = map['bankInfo'];
+
+if (bankRaw is Map<String, dynamic>) {
+parsedBankInfo = BankInfoModel.fromMap(bankRaw);
+} else if (bankRaw is String) {
+parsedBankInfo = BankInfoModel(bankCode: bankRaw, accountNo: '', accountName: '');
+}
+
+return UserModel(
+uid: doc.id,
+displayName: map['displayName']?.toString() ?? 'Người dùng',
+email: map['email']?.toString() ?? '',
+address: parsedAddress,
+totalPoints: (map['totalPoints'] as num?)?.toInt() ?? 0,
+currentPoints: (map['currentPoints'] as num?)?.toInt() ?? 0,
+weekPoints: (map['weekPoints'] as num?)?.toInt() ?? 0,
+monthPoints: (map['monthPoints'] as num?)?.toInt() ?? 0,
+role: map['role']?.toString() ?? 'user',
+bankInfo: parsedBankInfo,
+);
+}
 }

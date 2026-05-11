@@ -9,6 +9,7 @@ class TransactionModel {
   final int amountVND;
   final String type;
   final String status;
+  final int pointsUsed;
   final BankInfoModel? bankDetails;
   final DateTime createdAt;
   final DateTime? paidAt;
@@ -20,6 +21,7 @@ class TransactionModel {
     this.rewardId,
     required this.amountVND,
     required this.type,
+    required this.pointsUsed,
     this.status = 'pending',
     this.bankDetails,
     required this.createdAt,
@@ -33,6 +35,7 @@ class TransactionModel {
     String? rewardId,
     int? amountVND,
     String? type,
+    int? pointsUsed,
     String? status,
     BankInfoModel? bankDetails,
     DateTime? createdAt,
@@ -45,6 +48,7 @@ class TransactionModel {
       rewardId: rewardId ?? this.rewardId,
       amountVND: amountVND ?? this.amountVND,
       type: type ?? this.type,
+      pointsUsed: pointsUsed ?? this.pointsUsed,
       status: status ?? this.status,
       bankDetails: bankDetails ?? this.bankDetails,
       createdAt: createdAt ?? this.createdAt,
@@ -59,6 +63,7 @@ class TransactionModel {
       'rewardId': rewardId,
       'amountVND': amountVND,
       'type': type,
+      'pointsUsed': pointsUsed,
       'status': status,
       'bankDetails': bankDetails?.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
@@ -75,6 +80,7 @@ class TransactionModel {
       rewardId: map['rewardId'],
       amountVND: map['amountVND']?.toInt() ?? 0,
       type: map['type'] ?? 'earn',
+      pointsUsed: map['pointsUsed'] ?? 0,
       status: map['status'] ?? 'pending',
       bankDetails: map['bankDetails'] != null
           ? BankInfoModel.fromMap(map['bankDetails'] as Map<String, dynamic>)
