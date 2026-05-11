@@ -68,21 +68,50 @@ class UserModel {
     };
   }
 
-  factory UserModel.fromDocument(DocumentSnapshot doc) {
-    final map = doc.data() as Map<String, dynamic>? ?? {};
-    return UserModel(
-      uid: doc.id,
-      displayName: map['displayName'] ?? 'Người dùng',
-      email: map['email'] ?? '',
-      address: AddressModel.fromMap(map['address'] as Map<String, dynamic>?),
-      totalPoints: map['totalPoints']?.toInt() ?? 0,
-      currentPoints: map['currentPoints']?.toInt() ?? 0,
-      weekPoints: map['weekPoints']?.toInt() ?? 0,
-      monthPoints: map['monthPoints']?.toInt() ?? 0,
-      role: map['role'] ?? 'user',
-      bankInfo: map['bankInfo'] != null
-          ? BankInfoModel.fromMap(map['bankInfo'] as Map<String, dynamic>)
-          : null,
-    );
-  }
+factory UserModel.fromDocument(DocumentSnapshot doc) {
+final map = doc.data() as Map<String, dynamic>? ?? {};
+
+// --- 1. XỬ LÝ AN TOÀN CHO ADDRESS ---
+AddressModel parsedAddress = AddressModel(district: '', city: '');
+final addressRaw = map['address'];
+
+if (addressRaw is Map<String, dynamic>) {
+// Nếu dữ liệu chuẩn là Map
+parsedAddress = AddressModel.fromMap(addressRaw);
+} else if (addressRaw is List && addressRaw.isNotEmpty) {
+// Nếu dữ liệu bị lưu nhầm thành List (ví dụ: ['Quận', 'Thành phố'])
+String d = '';
+String c = '';
+if (addressRaw[0] is String) d = addressRaw[0];
+if (addressRaw.length > 1 && addressRaw[1] is String) c = addressRaw[1];
+parsedAddress = AddressModel(district: d, city: c);
+} else if (addressRaw is String) {
+// Nếu dữ liệu bị lưu thành String (ví dụ: "Đà Nẵng")
+parsedAddress = AddressModel(district: addressRaw, city: '');
+}
+
+// --- 2. XỬ LÝ AN TOÀN CHO BANK INFO ---
+BankInfoModel? parsedBankInfo;
+final bankRaw = map['bankInfo'];
+
+if (bankRaw is Map<String, dynamic>) {
+parsedBankInfo = BankInfoModel.fromMap(bankRaw);
+} else if (bankRaw is String) {
+// Nếu lỡ bị lưu thành chuỗi (vd: "Chưa có thẻ")
+parsedBankInfo = BankInfoModel(bankCode: bankRaw, accountNo: '', accountName: '');
+}
+
+return UserModel(
+uid: doc.id,
+displayName: map['displayName']?.toString() ?? 'Người dùng',
+email: map['email']?.toString() ?? '',
+address: parsedAddress,
+totalPoints: (map['totalPoints'] as num?)?.toInt() ?? 0,
+currentPoints: (map['currentPoints'] as num?)?.toInt() ?? 0,
+weekPoints: (map['weekPoints'] as num?)?.toInt() ?? 0,
+monthPoints: (map['monthPoints'] as num?)?.toInt() ?? 0,
+role: map['role']?.toString() ?? 'user',
+bankInfo: parsedBankInfo,
+);
+}
 }

@@ -5,7 +5,7 @@ import 'package:green_app/features/admin/views/admin_finance_screen.dart';
 import 'package:green_app/features/admin/views/admin_tasks_tab.dart';
 import 'package:green_app/features/admin/views/admin_transaction_tab.dart';
 import 'admin_submissions_tab.dart'; // Tab mình sẽ vẽ chi tiết bên dưới
-
+import 'package:green_app/features/admin/views/admin_users_tab.dart';
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
 
@@ -19,7 +19,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   final List<Widget> _tabs = [
     const AdminSubmissionsTab(), // Tab Duyệt bài
     const AdminTasksTab(),
-    const Center(child: Text("Quản lý Users")),
+    const AdminUsersTab(),
     const AdminFinanceScreen(),
   ];
 
