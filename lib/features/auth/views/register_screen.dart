@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../router/app_router.dart';
 import '../viewmodels/auth_view_model.dart';
-
+import '../../../core/services/vietnam_geography_api.dart';
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -37,10 +37,41 @@ class _RegisterScreenState
 
   final _confirmPasswordController =
       TextEditingController();
+  List<dynamic> _provinces = [];
+  List<dynamic> _districts = [];
+  String? _selectedProvince;
+  String? _selectedDistrict;
+  final VietnamGeographyApi _geographyApi =VietnamGeographyApi();
+
+
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-
+  @override
+  void initState() {
+    super.initState();
+    _loadProvinces();
+  }
+  Future<void>_loadProvinces() async {
+    try {
+      final provinces = await _geographyApi.fetchProvinces();
+      setState(() {
+        _provinces = provinces;
+      });
+    } catch (e) {
+      // Handle error, e.g. show a snackbar
+    }
+  }
+  Future<void> _loadDistricts(String provinceCode) async {
+    try {
+      final districts = await _geographyApi.fetchDistricts(provinceCode);
+      setState(() {
+        _districts = districts;
+      });
+    } catch (e) {
+      // Handle error, e.g. show a snackbar
+    }
+  }
   @override
   void dispose() {
     _displayNameController.dispose();
@@ -71,9 +102,9 @@ class _RegisterScreenState
               _displayNameController.text.trim(),
           username:
               _usernameController.text.trim(),
-          city: _cityController.text.trim(),
+          city: _selectedProvince!,
           district:
-              _districtController.text.trim(),
+              _selectedDistrict!,
         );
 
     if (!mounted) {
@@ -522,64 +553,53 @@ class _RegisterScreenState
 
                       const SizedBox(height: 12),
 
-                      const Text(
-                        'Thành phố',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
 
-                      const SizedBox(height: 6),
-
-                      _RegisterField(
-                        controller:
-                            _cityController,
-                        hint: 'Đà Nẵng',
-                        prefixIcon:
-                            Icons.location_city,
-                        validator: (value) {
-                          if (value == null ||
-                              value
-                                  .trim()
-                                  .isEmpty) {
-                            return 'Vui lòng nhập thành phố';
+                      DropdownButtonFormField<String>(
+                        value: _selectedProvince,
+                        items: _provinces.map<DropdownMenuItem<String>>((province) {
+                          return DropdownMenuItem<String>(
+                            value: province['code'].toString(),
+                            child: Text(province['name']),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedProvince = value;
+                            _selectedDistrict = null;
+                            _districts = [];
+                          });
+                          if (value != null) {
+                            _loadDistricts(value);
                           }
-
-                          return null;
                         },
+                        decoration: const InputDecoration(
+                          labelText: 'Thành phố',
+                          prefixIcon: Icon(Icons.location_city),
+                        ),
+                        validator: (value) => value == null ? 'Vui lòng chọn thành phố' : null,
                       ),
 
                       const SizedBox(height: 12),
 
-                      const Text(
-                        'Quận / Huyện',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
 
-                      const SizedBox(height: 6),
-
-                      _RegisterField(
-                        controller:
-                            _districtController,
-                        hint: 'Hải Châu',
-                        prefixIcon:
-                            Icons.map_outlined,
-                        validator: (value) {
-                          if (value == null ||
-                              value
-                                  .trim()
-                                  .isEmpty) {
-                            return 'Vui lòng nhập quận / huyện';
-                          }
-
-                          return null;
+                      DropdownButtonFormField<String>(
+                        value: _selectedDistrict,
+                        items: _districts.map<DropdownMenuItem<String>>((district) {
+                          return DropdownMenuItem<String>(
+                            value: district['name'],
+                            child: Text(district['name']),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDistrict = value;
+                          });
                         },
+                        decoration: const InputDecoration(
+                          labelText: 'Quận / Huyện',
+                          prefixIcon: Icon(Icons.map_outlined),
+                        ),
+                        validator: (value) => value == null ? 'Vui lòng chọn quận/huyện' : null,
                       ),
 
                       const SizedBox(height: 18),
