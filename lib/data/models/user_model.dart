@@ -71,33 +71,27 @@ class UserModel {
 factory UserModel.fromDocument(DocumentSnapshot doc) {
 final map = doc.data() as Map<String, dynamic>? ?? {};
 
-// --- 1. XỬ LÝ AN TOÀN CHO ADDRESS ---
 AddressModel parsedAddress = AddressModel(district: '', city: '');
 final addressRaw = map['address'];
 
 if (addressRaw is Map<String, dynamic>) {
-// Nếu dữ liệu chuẩn là Map
 parsedAddress = AddressModel.fromMap(addressRaw);
 } else if (addressRaw is List && addressRaw.isNotEmpty) {
-// Nếu dữ liệu bị lưu nhầm thành List (ví dụ: ['Quận', 'Thành phố'])
 String d = '';
 String c = '';
 if (addressRaw[0] is String) d = addressRaw[0];
 if (addressRaw.length > 1 && addressRaw[1] is String) c = addressRaw[1];
 parsedAddress = AddressModel(district: d, city: c);
 } else if (addressRaw is String) {
-// Nếu dữ liệu bị lưu thành String (ví dụ: "Đà Nẵng")
 parsedAddress = AddressModel(district: addressRaw, city: '');
 }
 
-// --- 2. XỬ LÝ AN TOÀN CHO BANK INFO ---
 BankInfoModel? parsedBankInfo;
 final bankRaw = map['bankInfo'];
 
 if (bankRaw is Map<String, dynamic>) {
 parsedBankInfo = BankInfoModel.fromMap(bankRaw);
 } else if (bankRaw is String) {
-// Nếu lỡ bị lưu thành chuỗi (vd: "Chưa có thẻ")
 parsedBankInfo = BankInfoModel(bankCode: bankRaw, accountNo: '', accountName: '');
 }
 

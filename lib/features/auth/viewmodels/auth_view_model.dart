@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';import 'package:cloud_firestore/cloud_firestore.dart'; // Import thêm thư viện này
 
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/services/auth_service.dart';
@@ -23,12 +24,33 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     state = const AsyncLoading();
 
     try {
+      // 1. Cho phép AuthService đăng nhập Firebase Auth
       await _authService.signIn(email: email, password: password);
+
+      // 2. --- TRẠM KIỂM SOÁT: KIỂM TRA TÀI KHOẢN CÓ BỊ KHÓA KHÔNG ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          final role = doc.data()?['role'];
+          if (role == 'blocked') {
+            // Nếu bị khóa -> Ép đăng xuất ngay lập tức
+            await FirebaseAuth.instance.signOut();
+            state = const AsyncData(null);
+            return 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!';
+          }
+        }
+      }
+      // -------------------------------------------------------------
+
       state = const AsyncData(null);
       return null;
     } on AuthException catch (e, stackTrace) {
       state = AsyncError(e, stackTrace);
       return e.message;
+    } catch (e) {
+      state = const AsyncData(null);
+      return 'Lỗi đăng nhập hệ thống: $e';
     }
   }
 
@@ -36,12 +58,33 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     state = const AsyncLoading();
 
     try {
+      // 1. Cho phép AuthService đăng nhập Google
       await _authService.signInWithGoogle();
+
+      // 2. --- TRẠM KIỂM SOÁT DÀNH CHO GOOGLE ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          final role = doc.data()?['role'];
+          if (role == 'blocked') {
+            // Nếu bị khóa -> Ép đăng xuất ngay lập tức
+            await FirebaseAuth.instance.signOut();
+            state = const AsyncData(null);
+            return 'Tài khoản Google này đã bị hệ thống khóa!';
+          }
+        }
+      }
+      // -----------------------------------------
+
       state = const AsyncData(null);
       return null;
     } on AuthException catch (e, stackTrace) {
       state = AsyncError(e, stackTrace);
       return e.message;
+    } catch (e) {
+      state = const AsyncData(null);
+      return 'Lỗi đăng nhập Google: $e';
     }
   }
 
