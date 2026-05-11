@@ -14,8 +14,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
       _ProfileScreenState();
 }
 
-class _ProfileScreenState
-    extends ConsumerState<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  String _role = 'user';
   static const List<String> _avatarGallery = [
     'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
@@ -75,6 +75,10 @@ class _ProfileScreenState
     if (!mounted) {
       return;
     }
+
+    setState(() {
+      _role = data?['role']?.toString() ?? 'user';
+    });
 
     final fallbackUsername =
         user?.email?.split('@').first ??
@@ -856,36 +860,33 @@ _districtController.text =
                   ),
 
                   SizedBox(
-                    width:
-                        double.infinity,
-                    child:
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                         FilledButton.icon(
-                      onPressed:
-                          _isSaving
-                              ? null
-                              : _saveProfile,
-                      icon:
-                          _isSaving
+                          onPressed: _isSaving ? null : _saveProfile,
+                          icon: _isSaving
                               ? const SizedBox(
-                                  width:
-                                      18,
-                                  height:
-                                      18,
-                                  child:
-                                      CircularProgressIndicator(
-                                    strokeWidth:
-                                        2,
-                                  ),
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Icon(
-                                  Icons
-                                      .save_outlined,
-                                ),
-                      label: Text(
-                        _isSaving
-                            ? 'Đang lưu...'
-                            : 'Lưu thay đổi',
-                      ),
+                              : const Icon(Icons.save_outlined),
+                          label: Text(_isSaving ? 'Đang lưu...' : 'Lưu thay đổi'),
+                        ),
+                        if (_role == 'admin')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12.0),
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pushNamed('/admin');
+                              },
+                              icon: const Icon(Icons.admin_panel_settings),
+                              label: const Text('Admin'),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
