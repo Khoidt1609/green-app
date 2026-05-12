@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/task_model.dart';
+import '../../../data/services/cloudinary_service.dart';
 import '../viewmodels/admin_task_viewmodel.dart';
 
 class TaskFormBottomSheet extends ConsumerStatefulWidget {
@@ -35,6 +38,7 @@ class _TaskFormBottomSheetState extends ConsumerState<TaskFormBottomSheet> {
     'Tiết kiệm',
     'Khác',
   ];
+  File? _selectedImageFile;
 
   @override
   void initState() {
@@ -69,15 +73,30 @@ class _TaskFormBottomSheetState extends ConsumerState<TaskFormBottomSheet> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final file = await ref.read(imageUploadServiceProvider).pickSingleImage();
+    if (file != null) {
+      setState(() {
+        _selectedImageFile = file;
+      });
+    }
+  }
+
   // Hàm xử lý khi bấm nút Lưu
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
+      final isEdit = widget.taskToEdit != null;
+
+      if (!isEdit && _selectedImageFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Vui lòng chọn hình ảnh minh họa!")),
+        );
+        return;
+      }
 
       // Tạo object TaskModel từ dữ liệu nhập
       final newTask = TaskModel(
-        id:
-            widget.taskToEdit?.id ??
-            '', // Tạm để rỗng nếu thêm mới, Firestore sẽ tự tạo
+        id: widget.taskToEdit?.id ?? '',
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
         pointsReward: int.parse(_pointsController.text.trim()),
@@ -88,30 +107,29 @@ class _TaskFormBottomSheetState extends ConsumerState<TaskFormBottomSheet> {
             true, // Giữ nguyên trạng thái nếu đang sửa
       );
 
-      try {
-        final actionNotifier = ref.read(adminTaskActionProvider.notifier);
-        if (widget.taskToEdit == null) {
-          await actionNotifier.add(newTask); // Gọi hàm thêm mới
-        } else {
-          await actionNotifier.update(newTask); // Gọi hàm cập nhật
-        }
+      await ref
+          .read(adminTaskActionProvider.notifier)
+          .saveTask(newTask, _selectedImageFile, isEdit);
 
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                widget.taskToEdit == null
-                    ? "Thêm thành công!"
-                    : "Cập nhật thành công!",
-              style: TextStyle(backgroundColor: AppColors.primaryGreen),),
+      if (mounted && !ref.read(adminTaskActionProvider).hasError) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.taskToEdit == null
+                  ? "Thêm thành công!"
+                  : "Cập nhật thành công!",
+              style: TextStyle(backgroundColor: AppColors.primaryGreen),
             ),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Lỗi: $e")));
+          ),
+        );
+      } else if (mounted && ref.read(adminTaskActionProvider).hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ref.read(adminTaskActionProvider).error.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -216,13 +234,53 @@ class _TaskFormBottomSheetState extends ConsumerState<TaskFormBottomSheet> {
               ),
               const SizedBox(height: 12),
 
-              // Link ảnh (Tạm dùng Text Input cho nhanh, sau này  tích hợp ImagePicker)
-              TextFormField(
-                controller: _imageUrlController,
-                decoration: const InputDecoration(
-                  labelText: 'Link ảnh (URL)',
-                  border: OutlineInputBorder(),
-                  hintText: 'https://...',
+              const Text(
+                "Hình ảnh minh họa:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 150,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey.shade300,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _selectedImageFile != null
+                        ? Image.file(
+                            _selectedImageFile!,
+                            fit: BoxFit.cover,
+                          ) // Ảnh vừa chọn
+                        : (widget.taskToEdit?.imageUrl != null &&
+                              widget.taskToEdit!.imageUrl!.isNotEmpty)
+                        ? Image.network(
+                            widget.taskToEdit!.imageUrl!,
+                            fit: BoxFit.cover,
+                          ) // Ảnh cũ
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 40,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Nhấn để tải ảnh lên",
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -243,21 +301,30 @@ class _TaskFormBottomSheetState extends ConsumerState<TaskFormBottomSheet> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-
                   onPressed: isLoading ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: isLoading
                       ? const SizedBox(
-                      height: 24, width: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                  )
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : Text(
-                    isEdit ? "CẬP NHẬT" : "TẠO NHIỆM VỤ",
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+                          isEdit ? "CẬP NHẬT" : "TẠO NHIỆM VỤ",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ],

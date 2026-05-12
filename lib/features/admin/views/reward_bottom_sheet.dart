@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/reward_model.dart';
+import '../../../data/services/cloudinary_service.dart';
 import '../viewmodels/admin_reward_viewmodel.dart';
 
 class RewardFormBottomSheet extends ConsumerStatefulWidget {
@@ -23,6 +26,7 @@ class _RewardFormBottomSheetState extends ConsumerState<RewardFormBottomSheet> {
   late TextEditingController _pointCostController;
   late TextEditingController _valueVNDController;
   late TextEditingController _imageUrlController;
+  File? _selectedImageFile;
 
   String _selectedType = 'cash'; // 'cash' hoặc 'voucher'
 
@@ -62,37 +66,59 @@ class _RewardFormBottomSheetState extends ConsumerState<RewardFormBottomSheet> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final file = await ref.read(imageUploadServiceProvider).pickSingleImage();
+    if (file != null) {
+      setState(() {
+        _selectedImageFile = file;
+      });
+    }
+  }
+
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final newReward = RewardModel(
+      final isEdit = widget.rewardToEdit != null;
+
+      // Thêm mới thì bắt buộc phải có ảnh
+      if (!isEdit && _selectedImageFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Vui lòng chọn hình ảnh minh họa!")),
+        );
+        return;
+      }
+
+      final rewardData = RewardModel(
         id: widget.rewardToEdit?.id ?? '',
         name: _nameController.text.trim(),
         description: _descController.text.trim(),
         pointCost: int.parse(_pointCostController.text.trim()),
         valueVND: int.parse(_valueVNDController.text.trim()),
         type: _selectedType,
-        imageUrl: _imageUrlController.text.trim(),
+        imageUrl: widget.rewardToEdit?.imageUrl,
         isActive: widget.rewardToEdit?.isActive ?? true,
       );
 
-      final actionNotifier = ref.read(adminRewardActionProvider.notifier);
+      await ref
+          .read(adminRewardActionProvider.notifier)
+          .saveReward(rewardData, _selectedImageFile, isEdit);
 
-      if (widget.rewardToEdit == null) {
-        await actionNotifier.add(newReward);
-      } else {
-        await actionNotifier.update(newReward);
-      }
-
+      // Xử lý UI sau khi ViewModel làm xong
       if (mounted && !ref.read(adminRewardActionProvider).hasError) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.rewardToEdit == null
-                  ? "Thêm thành công!"
-                  : "Cập nhật thành công!",
+              isEdit ? "Cập nhật thành công!" : "Thêm mới thành công!",
             ),
             backgroundColor: AppColors.primaryGreen,
+          ),
+        );
+      } else if (mounted && ref.read(adminRewardActionProvider).hasError) {
+        // Hiển thị lỗi nếu ViewModel ném lỗi ra
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ref.read(adminRewardActionProvider).error.toString()),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -203,11 +229,53 @@ class _RewardFormBottomSheetState extends ConsumerState<RewardFormBottomSheet> {
               ),
               const SizedBox(height: 12),
 
-              TextFormField(
-                controller: _imageUrlController,
-                decoration: const InputDecoration(
-                  labelText: 'Link ảnh (URL)',
-                  border: OutlineInputBorder(),
+              const Text(
+                "Hình ảnh minh họa:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 150,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey.shade300,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _selectedImageFile != null
+                        ? Image.file(
+                            _selectedImageFile!,
+                            fit: BoxFit.cover,
+                          ) // Ảnh vừa chọn
+                        : (widget.rewardToEdit?.imageUrl != null &&
+                              widget.rewardToEdit!.imageUrl!.isNotEmpty)
+                        ? Image.network(
+                            widget.rewardToEdit!.imageUrl!,
+                            fit: BoxFit.cover,
+                          ) // Ảnh cũ
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 40,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Nhấn để tải ảnh lên",
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

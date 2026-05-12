@@ -190,3 +190,73 @@ class AdminUsersTab extends ConsumerWidget {
     );
   }
 }
+// @override
+// Widget build(BuildContext context, WidgetRef ref) {
+//   final allUsersAsync = ref.watch(allUsersStreamProvider);
+//   final searchedUsersAsync = ref.watch(searchedUsersProvider);
+//
+//   return Scaffold(
+//     backgroundColor: AppColors.backgroundLight,
+//     body: SafeArea(
+//       child: Column(
+//         children: [
+//
+//           _buildUserSearchBar(context, ref),
+//
+//
+//           Expanded(
+//             child: SingleChildScrollView(
+//               child: Column(
+//                 children: [
+//                   // Thống kê Users
+//                   allUsersAsync.when(
+//                     data: (users) => _buildUserStats(users),
+//                     loading: () => const LinearProgressIndicator(),
+//                     error: (e, _) => const SizedBox(),
+//                   ),
+//
+//                   const SizedBox(height: 8),
+//
+//                   // Danh sách User
+//                   searchedUsersAsync.when(
+//                     data: (users) {
+//                       if (users.isEmpty) return const Center(child: Text("Không tìm thấy người dùng."));
+//                       return ListView.builder(
+//                         shrinkWrap: true,
+//                         physics: const NeverScrollableScrollPhysics(),
+//                         padding: const EdgeInsets.all(16),
+//                         itemCount: users.length,
+//                         itemBuilder: (context, index) => _buildUserCard(context, ref, users[index]),
+//                       );
+//                     },
+//                     loading: () => const Center(child: CircularProgressIndicator()),
+//                     error: (e, _) => Center(child: Text("Lỗi: $e")),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     ),
+//   );
+// }
+//
+// Widget _buildUserStats(List<UserModel> users) {
+//   final total = users.length;
+//   final active = users.where((u) => !(u.isBanned ?? false)).length;
+//   final banned = total - active;
+//
+//   return Padding(
+//     padding: const EdgeInsets.symmetric(horizontal: 16),
+//     child: Row(
+//       children: [
+//         Expanded(child: StatCard(icon: Icons.people_outline, color: AppColors.primaryDarkGreen, value: total.toString(), label: 'Tổng User')),
+//         const SizedBox(width: 8),
+//         Expanded(child: StatCard(icon: Icons.verified_user_outlined, color: Colors.blue, value: active.toString(), label: 'Hoạt động')),
+//         const SizedBox(width: 8),
+//         Expanded(child: StatCard(icon: Icons.block_flipped, color: Colors.redAccent, value: banned.toString(), label: 'Bị khóa')),
+//       ],
+//     ),
+//   );
+// }

@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/submission_model.dart';
 import '../providers/submission_provider.dart';
 import '../viewmodels/admin_viewmodel.dart';
+import '../widgets/stat_card.dart';
 
 class AdminSubmissionsTab extends ConsumerWidget {
   const AdminSubmissionsTab({super.key});
@@ -13,28 +14,61 @@ class AdminSubmissionsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Lắng nghe provider da loc
-    final submissionsAsync = ref.watch(filteredSubmissionsProvider);
-
+    final filteredSubmissionsAsync = ref.watch(filteredSubmissionsProvider);
+    final allSubmissionsAsync = ref.watch(allSubmissionsStreamProvider);
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      body: Column(
-        children: [
-          // Giao diện Tìm kiếm và Lọc
-          _buildSearchAndFilterBar(context, ref),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Thanh tìm kiếm và bộ lọc Chip
+            _buildSearchAndFilterBar(context, ref),
 
-          Expanded(
-            child: submissionsAsync.when(
-              data: (list) => ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: list.length,
-                itemBuilder: (context, index) =>
-                    _buildSubmissionCard(context, ref, list[index]),
+            // Thống kê và Danh sách
+            Expanded(
+              child: filteredSubmissionsAsync.when(
+                data: (list) {
+                  if (list.isEmpty) {
+                    return const Center(child: Text("Không có bài nộp nào."));
+                  }
+
+                  return ListView.builder(
+                    // Cộng 1 để dành vị trí index 0 cho phần Thống kê
+                    itemCount: list.length + 1,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return allSubmissionsAsync.when(
+                          data: (allList) => _buildSubmissionStats(allList),
+                          loading: () => const SizedBox(
+                            height: 100,
+                            child: Center(child: LinearProgressIndicator()),
+                          ),
+                          error: (e, _) => Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text("Lỗi thống kê: $e"),
+                          ),
+                        );
+                      }
+
+                      // index lúc này chạy từ 1 đến list.length, nên phải trừ 1 để lấy đúng phần tử
+                      final submission = list[index - 1];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        child: _buildSubmissionCard(context, ref, submission),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text("Lỗi: $e")),
               ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text("Lỗi: $e")),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -127,7 +161,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
     WidgetRef ref,
     SubmissionModel sub,
   ) {
-
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
@@ -145,7 +178,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           Row(
             children: [
               CircleAvatar(
@@ -215,6 +247,46 @@ class AdminSubmissionsTab extends ConsumerWidget {
     );
   }
 
+  Widget _buildSubmissionStats(List<SubmissionModel> list) {
+    final pending = list.where((s) => s.status == 'pending').length;
+    final approved = list.where((s) => s.status == 'approved').length;
+    final rejected = list.where((s) => s.status == 'rejected').length;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: StatCard(
+              icon: Icons.hourglass_empty,
+              color: Colors.orange,
+              value: pending.toString(),
+              label: 'Chờ duyệt',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: StatCard(
+              icon: Icons.check_circle_outline,
+              color: Colors.green,
+              value: approved.toString(),
+              label: 'Đã duyệt',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: StatCard(
+              icon: Icons.highlight_off,
+              color: Colors.red,
+              value: rejected.toString(),
+              label: 'Từ chối',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionArea(
     BuildContext context,
     WidgetRef ref,
@@ -226,13 +298,12 @@ class AdminSubmissionsTab extends ConsumerWidget {
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () =>
-                  _showRejectDialog(context, ref, sub.id),
+              onPressed: () => _showRejectDialog(context, ref, sub.id),
               icon: const Icon(Icons.close),
               label: const Text("Từ chối"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.error,
-                side: BorderSide(color: AppColors.error)
+                side: BorderSide(color: AppColors.error),
               ),
             ),
           ),
@@ -286,7 +357,10 @@ class AdminSubmissionsTab extends ConsumerWidget {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: AppColors.error.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Column(
             children: [
               const Row(
