@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:io';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AuthException implements Exception {
   final String message;
@@ -36,6 +37,7 @@ class AuthService {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
   final GoogleSignIn _googleSignIn;
+ 
 
   User? get currentUser => _auth.currentUser;
 
@@ -222,6 +224,15 @@ class AuthService {
     }
   }
 
+  Future<void> saveUserSession(String uid) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('user_uid', uid);
+}
+  Future<void> clearUserSession() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('user_uid');
+}
+
   // =========================================================
   // RESET PASSWORD
   // =========================================================
@@ -246,6 +257,7 @@ class AuthService {
     } catch (_) {}
 
     await _auth.signOut();
+    await clearUserSession();
   }
 
   // =========================================================
@@ -355,11 +367,6 @@ class AuthService {
       SetOptions(merge: true),
     );
   }
-
-  // =========================================================
-  // AVATAR
-  // =========================================================
-
   Future<String> uploadCurrentUserAvatar(String imagePath) async {
     final user = currentUser;
 
