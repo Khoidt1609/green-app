@@ -92,6 +92,17 @@ class _RegisterScreenState
 
     FocusScope.of(context).unfocus();
 
+    // Lấy tên province từ code
+    String provinceName = '';
+    try {
+      final provinceObj = _provinces.firstWhere(
+        (p) => p['code'].toString() == _selectedProvince,
+      );
+      provinceName = provinceObj['name'] ?? _selectedProvince ?? '';
+    } catch (e) {
+      provinceName = _selectedProvince ?? '';
+    }
+
     final error = await ref
         .read(authViewModelProvider.notifier)
         .register(
@@ -102,7 +113,7 @@ class _RegisterScreenState
               _displayNameController.text.trim(),
           username:
               _usernameController.text.trim(),
-          city: _selectedProvince!,
+          city: provinceName,
           district:
               _selectedDistrict!,
         );
