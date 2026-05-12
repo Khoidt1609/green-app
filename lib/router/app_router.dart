@@ -23,7 +23,7 @@ class AppRouter {
   static const String greenMap = '/green-map';
   static const String admin = '/admin';
   static const String rewardWallet = '/reward-wallet';
-  static const String admin = '/admin';
+  
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
