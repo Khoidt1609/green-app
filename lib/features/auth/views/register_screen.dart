@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:green_app/core/providers/auth_providers.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../router/app_router.dart';
@@ -97,7 +99,7 @@ class _RegisterScreenState
     super.dispose();
   }
 
-  Future<void> _onRegisterPressed() async {
+Future<void> _onRegisterPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -115,31 +117,26 @@ class _RegisterScreenState
           district: _selectedDistrict ?? '',
         );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
       );
-      return;
+    } else {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await ref.read(authServiceProvider).saveUserSession(user.uid);
+      }
+      // 1. Hiện thông báo
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đăng ký thành công!'), backgroundColor: AppColors.primaryGreen),
+      );
+
+      // 2. Điều hướng ngay lập tức
+      // Vì Firebase tự động login sau khi register, nên ta đẩy thẳng vào Home luôn.
+      Navigator.pushNamedAndRemoveUntil(context, AppRouter.home, (route) => false);
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Đăng ký thành công.',
-        ),
-      ),
-    );
-
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(
-      AppRouter.login,
-      (route) => false,
-    );
   }
 
   Future<void> _onGooglePressed() async {
