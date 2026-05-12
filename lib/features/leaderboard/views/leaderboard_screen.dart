@@ -517,7 +517,7 @@ class _FilterSheetState
   Future<void> _loadProvinces() async {
     try {
       final data =
-          await _api.fetchProvinces();
+          await _api.getProvinces();
 
       setState(() {
         provinces = data;
@@ -531,12 +531,12 @@ class _FilterSheetState
   }
 
   Future<void> _loadDistricts(
-    String provinceCode,
+    String province,
   ) async {
     setState(() {
       districts = [];
       selectedProvinceCode =
-          provinceCode;
+          province;
       
       search = '';
 
@@ -544,8 +544,8 @@ class _FilterSheetState
 
     try {
       final data =
-          await _api.fetchDistricts(
-        provinceCode,
+          await _api.getDistricts(
+        province,
       );
 
       setState(() {

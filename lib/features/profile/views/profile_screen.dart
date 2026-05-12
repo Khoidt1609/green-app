@@ -30,8 +30,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _usernameController = TextEditingController();
 
   final VietnamGeographyApi _geoApi = VietnamGeographyApi();
-  List<dynamic> _provinces =[];
-  List<dynamic> _districts =[];
+  List<dynamic> _provinces = [];
+  List<dynamic> _districts = [];
   String? _selectedProvince;
   String? _selectedDistrict;
   bool _isSaving = false;
@@ -95,22 +95,21 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
 
     final cityFromDb = (address['city'] as String?)?.trim();
     
-    // Map province name hoặc code sang province code
+    // Load provinces đầu tiên
+    await _loadProvinces();
+    
+    // Tìm province trong danh sách
     if (cityFromDb != null && cityFromDb.isNotEmpty) {
-      // Kiểm xem có phải code không
-      final isCode = _provinces.any((p) => p['code'].toString() == cityFromDb);
-      if (isCode) {
-        _selectedProvince = cityFromDb;
-      } else {
-        // Tìm code từ tên province (database lưu tên)
-        final province = _provinces.firstWhere(
-          (p) => p['name'].toString().toLowerCase() == cityFromDb.toLowerCase(),
-          orElse: () => null,
+      // Tìm province có tên trùng với cityFromDb
+      try {
+        final matchingProvince = _provinces.firstWhere(
+          (p) => (p['name'] as String?)?.toLowerCase() == cityFromDb.toLowerCase(),
         );
-        _selectedProvince = province != null ? province['code'].toString() : null;
+        _selectedProvince = matchingProvince['code'].toString();
+      } catch (_) {
+        _selectedProvince = null;
       }
     } else {
-      // Database lưu empty → set null
       _selectedProvince = null;
     }
     
@@ -131,24 +130,36 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
       _isLoading = false;
     });
   }
+  
   Future<void> _loadProvinces() async {
     try {
-      final provinces = await _geoApi.fetchProvinces();
+      final provinces = await _geoApi.getProvinces();
       setState(() {
         _provinces = provinces;
       });
     } catch (e) {
       // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải danh sách tỉnh: $e')),
+        );
+      }
     }
   }
-  Future<void> _loadDistricts(String provinceId) async {
+
+  Future<void> _loadDistricts(String province) async {
     try {
-      final districts = await _geoApi.fetchDistricts(provinceId);
+      final districts = await _geoApi.getDistricts(province);
       setState(() {
         _districts = districts;
       });
     } catch (e) {
       // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải danh sách huyện: $e')),
+        );
+      }
     }
   }
 
@@ -182,23 +193,6 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
       return;
     }
 
-    // Kiểm tra province/district có hợp lệ không
-    final provinceExists = _provinces.any((p) => p['code'].toString() == _selectedProvince);
-    if (!provinceExists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tỉnh/thành phố không hợp lệ. Vui lòng chọn lại.')),
-      );
-      return;
-    }
-
-    final districtExists = _districts.any((d) => d['name'].toString() == _selectedDistrict);
-    if (!districtExists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quận/huyện không hợp lệ. Vui lòng chọn lại.')),
-      );
-      return;
-    }
-
     setState(() {
       _isSaving = true;
     });
@@ -206,33 +200,10 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
     final authService = ref.read(authServiceProvider);
 
     try {
-      // Debug: In ra để xem giá trị
-      print('DEBUG: _selectedProvince = $_selectedProvince');
-      print('DEBUG: _selectedDistrict = $_selectedDistrict');
-      print('DEBUG: _provinces length = ${_provinces.length}');
-      if (_provinces.isNotEmpty) {
-        print('DEBUG: First province = ${_provinces.first}');
-      }
-
-      // Lấy tên province từ code
-      String provinceName = '';
-      try {
-        final selectedProvinceObj = _provinces.firstWhere(
-          (p) => p['code'].toString() == _selectedProvince,
-        );
-        provinceName = selectedProvinceObj['name'] ?? '';
-        print('DEBUG: Found province name = $provinceName');
-      } catch (e) {
-        print('DEBUG: Error finding province: $e');
-        provinceName = _selectedProvince ?? '';
-      }
-
-      print('DEBUG: Saving with provinceName = $provinceName');
-
       await authService.updateProfile(
         displayName: _nameController.text,
         username: _usernameController.text,
-        city: provinceName,
+        city: _selectedProvince!,
         district: _selectedDistrict!,
         avatarUrl: _avatarUrl,
       );
@@ -674,13 +645,11 @@ _provinces.isEmpty
         ),
       )
     : DropdownButtonFormField<String>(
-        value: _selectedProvince != null && _provinces.any((p) => p['code'].toString() == _selectedProvince)
-            ? _selectedProvince
-            : null,
+        value: _selectedProvince,
         items: _provinces.map<DropdownMenuItem<String>>((province) {
           return DropdownMenuItem<String>(
             value: province['code'].toString(),
-            child: Text(province['name']),
+            child: Text(province['name'].toString()),
           );
         }).toList(),
         onChanged: (value) {
@@ -737,8 +706,8 @@ _selectedProvince == null || _selectedProvince!.isEmpty
             value: _selectedDistrict,
             items: _districts.map<DropdownMenuItem<String>>((district) {
               return DropdownMenuItem<String>(
-                value: district['name'],
-                child: Text(district['name']),
+                value: district['code'].toString(),
+                child: Text(district['name'].toString()),
               );
             }).toList(),
             onChanged: (value) {

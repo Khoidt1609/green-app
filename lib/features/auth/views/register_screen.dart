@@ -41,35 +41,47 @@ class _RegisterScreenState
   List<dynamic> _districts = [];
   String? _selectedProvince;
   String? _selectedDistrict;
-  final VietnamGeographyApi _geographyApi =VietnamGeographyApi();
-
-
+  final VietnamGeographyApi _geographyApi = VietnamGeographyApi();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  
   @override
   void initState() {
     super.initState();
     _loadProvinces();
   }
-  Future<void>_loadProvinces() async {
+  
+  Future<void> _loadProvinces() async {
     try {
-      final provinces = await _geographyApi.fetchProvinces();
+      final provinces = await _geographyApi.getProvinces();
       setState(() {
         _provinces = provinces;
       });
     } catch (e) {
-      // Handle error, e.g. show a snackbar
+      // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải danh sách tỉnh: $e')),
+        );
+      }
     }
   }
-  Future<void> _loadDistricts(String provinceCode) async {
+  
+  Future<void> _loadDistricts(String province) async {
     try {
-      final districts = await _geographyApi.fetchDistricts(provinceCode);
+      final districts = await _geographyApi.getDistricts(province);
       setState(() {
         _districts = districts;
+        _selectedDistrict = null;
       });
     } catch (e) {
-      // Handle error, e.g. show a snackbar
+      // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải danh sách huyện: $e')),
+        );
+      }
     }
   }
   @override
@@ -92,30 +104,15 @@ class _RegisterScreenState
 
     FocusScope.of(context).unfocus();
 
-    // Lấy tên province từ code
-    String provinceName = '';
-    try {
-      final provinceObj = _provinces.firstWhere(
-        (p) => p['code'].toString() == _selectedProvince,
-      );
-      provinceName = provinceObj['name'] ?? _selectedProvince ?? '';
-    } catch (e) {
-      provinceName = _selectedProvince ?? '';
-    }
-
     final error = await ref
         .read(authViewModelProvider.notifier)
         .register(
           email: _emailController.text.trim(),
-          password:
-              _passwordController.text.trim(),
-          displayName:
-              _displayNameController.text.trim(),
-          username:
-              _usernameController.text.trim(),
-          city: provinceName,
-          district:
-              _selectedDistrict!,
+          password: _passwordController.text.trim(),
+          displayName: _displayNameController.text.trim(),
+          username: _usernameController.text.trim(),
+          city: _selectedProvince ?? '',
+          district: _selectedDistrict ?? '',
         );
 
     if (!mounted) {
@@ -570,7 +567,7 @@ class _RegisterScreenState
                         items: _provinces.map<DropdownMenuItem<String>>((province) {
                           return DropdownMenuItem<String>(
                             value: province['code'].toString(),
-                            child: Text(province['name']),
+                            child: Text(province['name'].toString()),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -592,13 +589,12 @@ class _RegisterScreenState
 
                       const SizedBox(height: 12),
 
-
                       DropdownButtonFormField<String>(
                         value: _selectedDistrict,
                         items: _districts.map<DropdownMenuItem<String>>((district) {
                           return DropdownMenuItem<String>(
-                            value: district['name'],
-                            child: Text(district['name']),
+                            value: district['code'].toString(),
+                            child: Text(district['name'].toString()),
                           );
                         }).toList(),
                         onChanged: (value) {
