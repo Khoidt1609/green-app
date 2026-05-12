@@ -1,30 +1,24 @@
-// lib/features/home/viewmodels/home_viewmodel.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-// ─── State ────────────────────────────────────────────────────────────────────
 
 class HomeState {
   final bool isLoadingProfile;
   final bool isLoadingTasks;
   final String? error;
 
-  // User info
   final String displayName;
   final String avatarInitial;
+
   final int totalPoints;
   final int currentPoints;
-  final int weekPoints;   // ← khớp field Firestore: weekPoints
-  final int monthPoints;  // ← khớp field Firestore: monthPoints
+  final int weekPoints;
+  final int monthPoints;
   final int streakDays;
+
   final int? cityRank;
 
-  // Tasks (3 nhiệm vụ gần nhất)
   final List<Map<String, dynamic>> recentTasks;
-
-  // Achievements
   final List<Map<String, dynamic>> recentAchievements;
 
   const HomeState({
@@ -61,118 +55,200 @@ class HomeState {
     bool clearCityRank = false,
   }) {
     return HomeState(
-      isLoadingProfile: isLoadingProfile ?? this.isLoadingProfile,
-      isLoadingTasks: isLoadingTasks ?? this.isLoadingTasks,
+      isLoadingProfile:
+          isLoadingProfile ?? this.isLoadingProfile,
+
+      isLoadingTasks:
+          isLoadingTasks ?? this.isLoadingTasks,
+
       error: clearError ? null : error ?? this.error,
+
       displayName: displayName ?? this.displayName,
-      avatarInitial: avatarInitial ?? this.avatarInitial,
+
+      avatarInitial:
+          avatarInitial ?? this.avatarInitial,
+
       totalPoints: totalPoints ?? this.totalPoints,
-      currentPoints: currentPoints ?? this.currentPoints,
+
+      currentPoints:
+          currentPoints ?? this.currentPoints,
+
       weekPoints: weekPoints ?? this.weekPoints,
-      monthPoints: monthPoints ?? this.monthPoints,
+
+      monthPoints:
+          monthPoints ?? this.monthPoints,
+
       streakDays: streakDays ?? this.streakDays,
-      cityRank: clearCityRank ? null : cityRank ?? this.cityRank,
-      recentTasks: recentTasks ?? this.recentTasks,
-      recentAchievements: recentAchievements ?? this.recentAchievements,
+
+      cityRank: clearCityRank
+          ? null
+          : cityRank ?? this.cityRank,
+
+      recentTasks:
+          recentTasks ?? this.recentTasks,
+
+      recentAchievements:
+          recentAchievements ??
+              this.recentAchievements,
     );
   }
 
-  // Computed: số task đã hoàn thành trong danh sách gần nhất
   int get tasksDoneCount =>
-      recentTasks.where((t) => (t['done'] as bool?) == true).length;
+      recentTasks.where(
+        (t) => (t['done'] as bool?) == true,
+      ).length;
 
-  // Computed: level từ totalPoints (mỗi 1000 pts = 1 level)
   int get level => (totalPoints ~/ 1000) + 1;
 
-  // Computed: progress trong level hiện tại (0.0 → 1.0)
   double get levelProgress =>
-      ((totalPoints % 1000) / 1000).clamp(0.0, 1.0);
+      ((totalPoints % 1000) / 1000)
+          .clamp(0.0, 1.0);
 
-  // Computed: progress tuần (mục tiêu 600 pts/tuần)
-  double get weekProgress => (weekPoints / 600).clamp(0.0, 1.0);
+  double get weekProgress =>
+      (weekPoints / 600).clamp(0.0, 1.0);
 
-  // Computed: progress tháng (mục tiêu 2000 pts/tháng)
-  double get monthProgress => (monthPoints / 2000).clamp(0.0, 1.0);
+  double get monthProgress =>
+      (monthPoints / 2000).clamp(0.0, 1.0);
 }
-
-// ─── ViewModel ────────────────────────────────────────────────────────────────
 
 class HomeViewModel extends StateNotifier<HomeState> {
   HomeViewModel() : super(const HomeState()) {
     _init();
   }
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
   User? get _currentUser => _auth.currentUser;
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-
   Future<void> _init() async {
-    await Future.wait([_loadProfile(), _loadRecentTasks()]);
+    await Future.wait([
+      _loadProfile(),
+      _loadRecentTasks(),
+    ]);
   }
 
-  // ── Load Profile ──────────────────────────────────────────────────────────
+  // =========================================================
+  // PROFILE
+  // =========================================================
 
   Future<void> _loadProfile() async {
     final user = _currentUser;
+
     if (user == null) {
-      state = state.copyWith(isLoadingProfile: false);
+      state = state.copyWith(
+        isLoadingProfile: false,
+      );
       return;
     }
 
     try {
-      final doc =
-          await _firestore.collection('users').doc(user.uid).get();
+      final doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
       final data = doc.data() ?? {};
+
       _applyProfileData(data, user);
     } catch (e) {
       state = state.copyWith(
         isLoadingProfile: false,
-        error: 'Không thể tải thông tin người dùng.',
+        error:
+            'Không thể tải thông tin người dùng.',
       );
     }
   }
 
-  void _applyProfileData(Map<String, dynamic> data, User user) {
-    // Ưu tiên: displayName (UserModel) → fullName (auth_service) → username → email prefix
-    final displayName = _resolveDisplayName(data, user);
-    final avatarInitial = displayName.isNotEmpty
-        ? displayName[0].toUpperCase()
-        : 'U';
+  void _applyProfileData(
+    Map<String, dynamic> data,
+    User user,
+  ) {
+    final displayName =
+        _resolveDisplayName(data, user);
 
-    // Đọc achievements nếu có
+    final avatarInitial =
+        displayName.isNotEmpty
+            ? displayName[0].toUpperCase()
+            : 'U';
+
     final achievementsRaw =
-        data['recentAchievements'] as List<dynamic>? ?? [];
-    final achievements = achievementsRaw
-        .whereType<Map<String, dynamic>>()
-        .toList();
+        data['recentAchievements']
+            as List<dynamic>? ??
+        [];
+
+    final achievements =
+        achievementsRaw.map((e) {
+      return Map<String, dynamic>.from(
+        e as Map,
+      );
+    }).toList();
 
     state = state.copyWith(
       isLoadingProfile: false,
+
       displayName: displayName,
+
       avatarInitial: avatarInitial,
-      // Firestore dùng totalPoints / currentPoints / weekPoints / monthPoints
-      totalPoints: (data['totalPoints'] as num?)?.toInt() ?? 0,
-      currentPoints: (data['currentPoints'] as num?)?.toInt() ?? 0,
-      weekPoints: (data['weekPoints'] as num?)?.toInt() ?? 0,
-      monthPoints: (data['monthPoints'] as num?)?.toInt() ?? 0,
-      streakDays: (data['streakDays'] as num?)?.toInt() ?? 0,
-      cityRank: (data['cityRank'] as num?)?.toInt(),
+
+      totalPoints:
+          (data['totalPoints'] as num?)
+                  ?.toInt() ??
+              0,
+
+      currentPoints:
+          (data['currentPoints'] as num?)
+                  ?.toInt() ??
+              0,
+
+      weekPoints:
+          (data['weekPoints'] as num?)
+                  ?.toInt() ??
+              0,
+
+      monthPoints:
+          (data['monthPoints'] as num?)
+                  ?.toInt() ??
+              0,
+
+      streakDays:
+          (data['streakDays'] as num?)
+                  ?.toInt() ??
+              0,
+
+      cityRank:
+          (data['cityRank'] as num?)
+              ?.toInt(),
+
       recentAchievements: achievements,
     );
   }
 
-  /// Ưu tiên displayName → fullName → username → email prefix
-  String _resolveDisplayName(Map<String, dynamic> data, User user) {
+  String _resolveDisplayName(
+    Map<String, dynamic> data,
+    User user,
+  ) {
     final candidates = [
-      (data['displayName'] as String?)?.trim(),
-      (data['fullName'] as String?)?.trim(),
-      (data['username'] as String?)?.trim(),
+      (data['displayName'] as String?)
+          ?.trim(),
+
+      (data['fullName'] as String?)
+          ?.trim(),
+
+      (data['username'] as String?)
+          ?.trim(),
+
       user.displayName?.trim(),
-      user.email?.split('@').first.trim(),
+
+      user.email
+          ?.split('@')
+          .first
+          .trim(),
     ];
+
     return candidates.firstWhere(
           (s) => s != null && s.isNotEmpty,
           orElse: () => 'Người dùng',
@@ -180,70 +256,121 @@ class HomeViewModel extends StateNotifier<HomeState> {
         'Người dùng';
   }
 
-  // ── Load Recent Tasks ─────────────────────────────────────────────────────
+  // =========================================================
+  // TASKS
+  // =========================================================
 
   Future<void> _loadRecentTasks() async {
     final user = _currentUser;
+
     if (user == null) {
-      state = state.copyWith(isLoadingTasks: false);
+      state = state.copyWith(
+        isLoadingTasks: false,
+      );
       return;
     }
 
     try {
-      // Lấy 3 submissions gần nhất của user đã được duyệt (approved)
-      // hoặc đang chờ (pending) để hiển thị trên dashboard
-      final submissionsSnap = await _firestore
-          .collection('submissions')
-          .where('userId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
-          .limit(3)
-          .get();
+      final submissionsSnap =
+          await _firestore
+              .collection('submissions')
+              .where(
+                'userId',
+                isEqualTo: user.uid,
+              )
+              .orderBy(
+                'createdAt',
+                descending: true,
+              )
+              .limit(3)
+              .get();
 
-      final tasks = submissionsSnap.docs.map((doc) {
+      final tasks =
+          submissionsSnap.docs.map((doc) {
         final d = doc.data();
+
         return {
           'id': doc.id,
-          'title': d['taskTitle'] ?? '',
-          'category': d['category'] ?? 'Nhiệm vụ',
-          'points': (d['pointsReward'] as num?)?.toInt() ?? 0,
-          'done': d['status'] == 'approved',
-          'status': d['status'] ?? 'pending',
-          'dueLabel': _statusLabel(d['status'] as String?),
+
+          'title':
+              d['taskTitle'] ?? 'Nhiệm vụ',
+
+          'category':
+              d['category'] ?? 'General',
+
+          'points':
+              (d['pointsReward'] as num?)
+                      ?.toInt() ??
+                  0,
+
+          'done':
+              d['status'] == 'approved',
+
+          'status':
+              d['status'] ?? 'pending',
+
+          'dueLabel': _statusLabel(
+            d['status'] as String?,
+          ),
         };
       }).toList();
 
-      state = state.copyWith(isLoadingTasks: false, recentTasks: tasks);
-    } catch (_) {
-      // Fallback: thử lấy từ subcollection tasks của user
+      state = state.copyWith(
+        isLoadingTasks: false,
+        recentTasks: tasks,
+      );
+    } catch (e) {
       await _loadRecentTasksFallback(user);
     }
   }
 
-  Future<void> _loadRecentTasksFallback(User user) async {
+  Future<void> _loadRecentTasksFallback(
+    User user,
+  ) async {
     try {
       final snap = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('tasks')
-          .orderBy('updatedAt', descending: true)
+          .orderBy(
+            'updatedAt',
+            descending: true,
+          )
           .limit(3)
           .get();
 
       final tasks = snap.docs.map((doc) {
         final d = doc.data();
+
         return {
           'id': doc.id,
-          'title': d['title'] ?? '',
-          'category': d['category'] ?? 'Nhiệm vụ',
-          'points': (d['pointsReward'] as num?)?.toInt() ?? 0,
-          'done': d['done'] ?? false,
+
+          'title':
+              d['title'] ?? 'Nhiệm vụ',
+
+          'category':
+              d['category'] ?? 'General',
+
+          'points':
+              (d['pointsReward'] as num?)
+                      ?.toInt() ??
+                  0,
+
+          'done':
+              d['done'] ?? false,
+
           'dueLabel': 'Hôm nay',
         };
       }).toList();
 
-      state = state.copyWith(isLoadingTasks: false, recentTasks: tasks);
-    } catch (_) {
-      state = state.copyWith(isLoadingTasks: false);
+      state = state.copyWith(
+        isLoadingTasks: false,
+        recentTasks: tasks,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoadingTasks: false,
+      );
     }
   }
 
@@ -251,29 +378,34 @@ class HomeViewModel extends StateNotifier<HomeState> {
     switch (status) {
       case 'approved':
         return 'Đã duyệt';
+
       case 'rejected':
         return 'Từ chối';
+
       default:
         return 'Đang chờ';
     }
   }
 
-  // ── Public actions ────────────────────────────────────────────────────────
+  // =========================================================
+  // REFRESH
+  // =========================================================
 
-  /// Gọi khi quay lại từ ProfileScreen hoặc pull-to-refresh
   Future<void> refresh() async {
     state = state.copyWith(
       isLoadingProfile: true,
       isLoadingTasks: true,
       clearError: true,
     );
+
     await _init();
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
 final homeViewModelProvider =
-    StateNotifierProvider<HomeViewModel, HomeState>((ref) {
+    StateNotifierProvider<
+      HomeViewModel,
+      HomeState
+    >((ref) {
   return HomeViewModel();
 });

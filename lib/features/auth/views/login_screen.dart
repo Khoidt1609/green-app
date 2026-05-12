@@ -1,11 +1,14 @@
+// lib/features/auth/views/login_screen.dart
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:green_app/core/providers/auth_providers.dart';
 
-import '../../../core/constants/app_colors.dart';
-import '../../../router/app_router.dart';
+import 'package:green_app/core/constants/app_colors.dart';
+import 'package:green_app/core/providers/auth_providers.dart';
+import 'package:green_app/router/app_router.dart';
+
 import '../viewmodels/auth_view_model.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -28,7 +31,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-Future<void> _onLoginPressed() async {
+
+  // =========================================================
+  // LOGIN
+  // =========================================================
+
+  Future<void> _onLoginPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -46,23 +54,40 @@ Future<void> _onLoginPressed() async {
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.redAccent,
+        ),
       );
-    } else {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await ref.read(authServiceProvider).saveUserSession(user.uid);
-      }
-      // 1. Hiện thông báo cho user vui
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng nhập thành công!'), backgroundColor: AppColors.primaryGreen),
-      );
-
-      // 2. Cú hích điều hướng: Dùng pushNamedAndRemoveUntil để dọn sạch stack cũ
-      // Lệnh này giúp bạn vào thẳng AppShell ngay bây giờ.
-      Navigator.pushNamedAndRemoveUntil(context, AppRouter.home, (route) => false);
+      return;
     }
+
+    // SAVE SESSION
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await ref
+          .read(authServiceProvider)
+          .saveUserSession(user.uid);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đăng nhập thành công!'),
+        backgroundColor: AppColors.primaryGreen,
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRouter.home,
+      (route) => false,
+    );
   }
+
+  // =========================================================
+  // GOOGLE LOGIN
+  // =========================================================
 
   Future<void> _onGooglePressed() async {
     FocusScope.of(context).unfocus();
@@ -71,9 +96,7 @@ Future<void> _onLoginPressed() async {
         .read(authViewModelProvider.notifier)
         .loginWithGoogle();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,21 +105,31 @@ Future<void> _onLoginPressed() async {
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await ref
+          .read(authServiceProvider)
+          .saveUserSession(user.uid);
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          'Đăng nhập Google thành công.',
-        ),
+        content: Text('Đăng nhập Google thành công.'),
+        backgroundColor: AppColors.primaryGreen,
       ),
     );
 
-    Navigator.of(
+    Navigator.pushNamedAndRemoveUntil(
       context,
-    ).pushNamedAndRemoveUntil(
       AppRouter.home,
       (route) => false,
     );
   }
+
+  // =========================================================
+  // FORGOT PASSWORD
+  // =========================================================
 
   Future<void> _onForgotPasswordPressed() async {
     final emailOrUsername = _emailController.text.trim();
@@ -120,9 +153,7 @@ Future<void> _onLoginPressed() async {
           emailOrUsername: emailOrUsername,
         );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -139,6 +170,10 @@ Future<void> _onLoginPressed() async {
       ),
     );
   }
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +229,7 @@ Future<void> _onLoginPressed() async {
                     crossAxisAlignment:
                         CrossAxisAlignment.stretch,
                     children: [
+                      // LOGO
                       Center(
                         child: Container(
                           height: 74,
@@ -347,9 +383,9 @@ Future<void> _onLoginPressed() async {
                           icon: Icon(
                             _obscurePassword
                                 ? Icons
-                                      .visibility_outlined
+                                    .visibility_outlined
                                 : Icons
-                                      .visibility_off_outlined,
+                                    .visibility_off_outlined,
                             color: AppColors
                                 .primaryGreen
                                 .withOpacity(0.75),
@@ -386,6 +422,7 @@ Future<void> _onLoginPressed() async {
 
                       const SizedBox(height: 10),
 
+                      // LOGIN BUTTON
                       DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius:
@@ -468,6 +505,7 @@ Future<void> _onLoginPressed() async {
 
                       const SizedBox(height: 14),
 
+                      // GOOGLE BUTTON
                       OutlinedButton.icon(
                         onPressed: isLoading
                             ? null
@@ -541,6 +579,10 @@ Future<void> _onLoginPressed() async {
     );
   }
 }
+
+// =========================================================
+// FIELD
+// =========================================================
 
 class _AuthField extends StatelessWidget {
   const _AuthField({
