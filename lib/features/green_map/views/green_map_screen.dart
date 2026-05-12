@@ -202,13 +202,22 @@ class _GreenMapScreenState extends ConsumerState<GreenMapScreen> {
     return FlutterMap(
       mapController: _mapCtrl,
       options: MapOptions(
-        initialCenter:     center,
-        initialZoom:       13.5,
-        minZoom:           5,
-        maxZoom:           19,
-        // Tap nền → bỏ chọn
-        onTap: (_, __) => vm.clearSelection(),
-      ),
+  initialCenter: center,
+  initialZoom: 13.5,
+  minZoom: 5,
+  maxZoom: 19,
+
+  // Tap nền → bỏ chọn
+  onTap: (_, __) => vm.clearSelection(),
+
+  // Auto fetch OSM khi kéo map
+  onPositionChanged: (position, hasGesture) {
+      final center = position.center;
+    if (hasGesture && center != null) {
+      vm.fetchOsmAt(center);
+    }
+  },
+),
       children: [
         // ── 1. Tile layer (OpenStreetMap) ─────────────────────────────────
         TileLayer(

@@ -6,191 +6,427 @@ import 'package:latlong2/latlong.dart';
 import '../../../data/models/green_location_model.dart';
 import '../../../data/repositories/map_repository.dart';
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
 
 class MapState {
   const MapState({
-    this.allLocations    = const [],
+    this.allLocations = const [],
     this.activeFilter,
-    this.isLoading       = false,
-    this.isOsmLoading    = false,   // loading riêng cho OSM
+    this.isLoading = false,
+    this.isOsmLoading = false,
     this.error,
     this.osmError,
     this.userLocation,
     this.selectedLocation,
-    this.osmFetched      = false,   // đã fetch OSM lần đầu chưa
+    this.osmFetched = false,
   });
 
   final List<GreenLocation> allLocations;
-  final GreenLocationType?  activeFilter;
-  final bool                isLoading;
-  final bool                isOsmLoading;
-  final String?             error;
-  final String?             osmError;
-  final LatLng?             userLocation;
-  final GreenLocation?      selectedLocation;
-  final bool                osmFetched;
+  final GreenLocationType? activeFilter;
+
+  final bool isLoading;
+  final bool isOsmLoading;
+
+  final String? error;
+  final String? osmError;
+
+  final LatLng? userLocation;
+
+  final GreenLocation? selectedLocation;
+
+  final bool osmFetched;
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   MapState copyWith({
     List<GreenLocation>? allLocations,
-    GreenLocationType?   activeFilter,
-    bool?                isLoading,
-    bool?                isOsmLoading,
-    String?              error,
-    String?              osmError,
-    LatLng?              userLocation,
-    GreenLocation?       selectedLocation,
-    bool?                osmFetched,
-    bool clearFilter   = false,
-    bool clearError    = false,
+    GreenLocationType? activeFilter,
+    bool? isLoading,
+    bool? isOsmLoading,
+    String? error,
+    String? osmError,
+    LatLng? userLocation,
+    GreenLocation? selectedLocation,
+    bool? osmFetched,
+
+    bool clearFilter = false,
+    bool clearError = false,
     bool clearOsmError = false,
     bool clearSelected = false,
   }) {
     return MapState(
-      allLocations:    allLocations    ?? this.allLocations,
-      activeFilter:    clearFilter     ? null : activeFilter    ?? this.activeFilter,
-      isLoading:       isLoading       ?? this.isLoading,
-      isOsmLoading:    isOsmLoading    ?? this.isOsmLoading,
-      error:           clearError      ? null : error            ?? this.error,
-      osmError:        clearOsmError   ? null : osmError         ?? this.osmError,
-      userLocation:    userLocation    ?? this.userLocation,
-      selectedLocation: clearSelected  ? null : selectedLocation ?? this.selectedLocation,
-      osmFetched:      osmFetched      ?? this.osmFetched,
+      allLocations:
+          allLocations ?? this.allLocations,
+
+      activeFilter: clearFilter
+          ? null
+          : activeFilter ?? this.activeFilter,
+
+      isLoading:
+          isLoading ?? this.isLoading,
+
+      isOsmLoading:
+          isOsmLoading ?? this.isOsmLoading,
+
+      error: clearError
+          ? null
+          : error ?? this.error,
+
+      osmError: clearOsmError
+          ? null
+          : osmError ?? this.osmError,
+
+      userLocation:
+          userLocation ?? this.userLocation,
+
+      selectedLocation: clearSelected
+          ? null
+          : selectedLocation ??
+              this.selectedLocation,
+
+      osmFetched:
+          osmFetched ?? this.osmFetched,
     );
   }
 
-  // ── Computed ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // COMPUTED
+  // ─────────────────────────────────────────────────────────────────────────
 
-  /// Danh sách hiển thị sau khi lọc theo activeFilter
   List<GreenLocation> get filteredLocations {
-    if (activeFilter == null) return allLocations;
-    return allLocations.where((l) => l.type == activeFilter).toList();
+  List<GreenLocation> result = allLocations;
+
+  // Filter theo loại
+  if (activeFilter != null) {
+    result = result.where((l) => l.type == activeFilter).toList();
   }
 
-  /// Đếm theo loại (hiển thị stat bar)
-  int count(GreenLocationType type) =>
-      allLocations.where((l) => l.type == type).length;
+  // Chỉ hiện trong bán kính 5km quanh user
+  if (userLocation != null) {
+    const distance = Distance();
 
-  /// Đếm riêng theo nguồn
-  int countFirebase() =>
-      allLocations.where((l) => l.source == LocationSource.firebase).length;
-  int countOsm() =>
-      allLocations.where((l) => l.source == LocationSource.osm).length;
+    result = result.where((loc) {
+      final meters = distance.distance(
+        userLocation!,
+        loc.position,
+      );
+
+      return meters <= 5000;
+    }).toList();
+  }
+
+  return result;
 }
 
-// ─── ViewModel ────────────────────────────────────────────────────────────────
+  int count(GreenLocationType type) {
+    return allLocations
+        .where((l) => l.type == type)
+        .length;
+  }
 
-class MapViewModel extends StateNotifier<MapState> {
-  MapViewModel(this._repo) : super(const MapState()) {
+  int countFirebase() {
+    return allLocations
+        .where(
+          (l) =>
+              l.source ==
+              LocationSource.firebase,
+        )
+        .length;
+  }
+
+  int countOsm() {
+    return allLocations
+        .where(
+          (l) =>
+              l.source ==
+              LocationSource.osm,
+        )
+        .length;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VIEWMODEL
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MapViewModel
+    extends StateNotifier<MapState> {
+  MapViewModel(this._repo)
+      : super(const MapState()) {
     _init();
   }
 
   final MapRepository _repo;
 
-  // ── Init: GPS trước, rồi Firebase, rồi OSM ──────────────────────────────
+  // Chống fetch spam khi move map
+  LatLng? _lastFetchCenter;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _init() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearOsmError: true,
+    );
 
-    // 1. Lấy vị trí GPS
-    final userPos = await _repo.getCurrentLocation();
-    if (userPos != null) {
-      state = state.copyWith(userLocation: userPos);
+    try {
+      // ── GPS ─────────────────────────────────────────────────────────────
+
+      final userPos =
+          await _repo.getCurrentLocation();
+
+      if (userPos != null) {
+        state = state.copyWith(
+          userLocation: userPos,
+        );
+      }
+
+      // ── FIREBASE ──────────────────────────────────────────────────────
+
+      await _loadFirebase();
+
+      // ── OSM ───────────────────────────────────────────────────────────
+
+      if (userPos != null) {
+        await _loadOsm(userPos);
+      }
+    } catch (e) {
+      print('MAP INIT ERROR: $e');
+
+      state = state.copyWith(
+        error: 'Không thể tải bản đồ.',
+      );
     }
 
-    // 2. Fetch Firebase (luôn có)
-    await _loadFirebase();
-
-    // 3. Fetch OSM nếu có vị trí
-    if (userPos != null) {
-      await _loadOsm(userPos);
-    }
-
-    state = state.copyWith(isLoading: false);
+    state = state.copyWith(
+      isLoading: false,
+    );
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FIREBASE
+  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _loadFirebase() async {
     try {
-      final locs = await _repo.getFirebaseLocations();
-      state = state.copyWith(allLocations: locs, clearError: true);
-    } catch (_) {
+      print('LOAD FIREBASE LOCATIONS');
+
+      final locs =
+          await _repo.getFirebaseLocations();
+
+      print(
+        'FIREBASE LOCATIONS: ${locs.length}',
+      );
+
       state = state.copyWith(
-        error: 'Không thể tải dữ liệu Firebase.',
-        isLoading: false,
+        allLocations: locs,
+        clearError: true,
+      );
+    } catch (e) {
+      print('FIREBASE ERROR: $e');
+
+      state = state.copyWith(
+        error:
+            'Không thể tải dữ liệu Firebase.',
       );
     }
   }
 
-  /// Fetch OSM và gộp vào danh sách hiện tại (không xóa Firebase)
-  Future<void> _loadOsm(LatLng center) async {
-    state = state.copyWith(isOsmLoading: true, clearOsmError: true);
-    try {
-      final osmLocs = await _repo.getOsmLocations(center);
+  // ─────────────────────────────────────────────────────────────────────────
+  // OSM
+  // ─────────────────────────────────────────────────────────────────────────
 
-      // Loại trùng với Firebase đã có
-      final existing = state.allLocations;
+  Future<void> _loadOsm(
+    LatLng center,
+  ) async {
+    state = state.copyWith(
+      isOsmLoading: true,
+      clearOsmError: true,
+    );
+
+    try {
+      print(
+        'LOAD OSM AT: ${center.latitude}, ${center.longitude}',
+      );
+
+      final osmLocs =
+          await _repo.getOsmLocations(center);
+
+      print(
+        'RAW OSM LOCATIONS: ${osmLocs.length}',
+      );
+
+      final existing =
+          state.allLocations;
+
       const distCalc = Distance();
+
+      // Loại trùng
       final deduped = osmLocs.where((osm) {
-        return !existing.any((fb) =>
-            distCalc.distance(fb.position, osm.position) < 30);
+        return !existing.any(
+          (fb) =>
+              distCalc.distance(
+                fb.position,
+                osm.position,
+              ) <
+              30,
+        );
       }).toList();
 
+      print(
+        'DEDUPED OSM LOCATIONS: ${deduped.length}',
+      );
+
       state = state.copyWith(
-        allLocations: [...existing, ...deduped],
+        allLocations: [
+          ...existing,
+          ...deduped,
+        ],
         isOsmLoading: false,
         osmFetched: true,
       );
-    } catch (_) {
+    } catch (e) {
+      print('OSM ERROR: $e');
+
       state = state.copyWith(
         isOsmLoading: false,
         osmFetched: true,
-        osmError: 'Không tải được dữ liệu OpenStreetMap.',
+        osmError:
+            'Không tải được dữ liệu OpenStreetMap.',
       );
     }
   }
 
-  // ── Public actions ────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // FILTER
+  // ─────────────────────────────────────────────────────────────────────────
 
-  void setFilter(GreenLocationType? type) {
-    // null = "Tất cả" → luôn clear filter dù đang là gì
+  void setFilter(
+    GreenLocationType? type,
+  ) {
+    // null = tất cả
+
     if (type == null) {
-      state = state.copyWith(clearFilter: true);
+      state = state.copyWith(
+        clearFilter: true,
+      );
+
       return;
     }
-    // Bấm lại cùng loại → toggle off (về Tất cả)
+
+    // Toggle filter
+
     if (state.activeFilter == type) {
-      state = state.copyWith(clearFilter: true);
+      state = state.copyWith(
+        clearFilter: true,
+      );
     } else {
-      state = state.copyWith(activeFilter: type);
+      state = state.copyWith(
+        activeFilter: type,
+      );
     }
   }
 
-  void selectLocation(GreenLocation loc) =>
-      state = state.copyWith(selectedLocation: loc);
+  // ─────────────────────────────────────────────────────────────────────────
+  // SELECTION
+  // ─────────────────────────────────────────────────────────────────────────
 
-  void clearSelection() =>
-      state = state.copyWith(clearSelected: true);
+  void selectLocation(
+    GreenLocation loc,
+  ) {
+    state = state.copyWith(
+      selectedLocation: loc,
+    );
+  }
 
-  /// Full refresh: xóa hết → fetch lại từ đầu
-  Future<void> refresh() => _init();
+  void clearSelection() {
+    state = state.copyWith(
+      clearSelected: true,
+    );
+  }
 
-  /// Fetch thêm OSM theo vị trí map hiện tại
-  Future<void> fetchOsmAt(LatLng center, {int? radiusMeters}) async {
-    if (state.isOsmLoading) return;
+  // ─────────────────────────────────────────────────────────────────────────
+  // REFRESH
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> refresh() async {
+    _lastFetchCenter = null;
+
+    await _init();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FETCH OSM THEO MAP POSITION
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> fetchOsmAt(
+    LatLng center, {
+    int? radiusMeters,
+  }) async {
+    // Đang loading -> skip
+
+    if (state.isOsmLoading) {
+      return;
+    }
+
+    // Chống spam request khi move map nhẹ
+
+    if (_lastFetchCenter != null) {
+      final distance =
+          const Distance().distance(
+        _lastFetchCenter!,
+        center,
+      );
+
+      // Chỉ fetch khi move > 800m
+
+      if (distance < 800) {
+        return;
+      }
+    }
+
+    _lastFetchCenter = center;
+
     await _loadOsm(center);
   }
 
-  /// Tìm địa điểm gần nhất theo type
-  GreenLocation? nearestOf(GreenLocationType type) {
-    final userPos = state.userLocation;
-    if (userPos == null) return null;
+  // ─────────────────────────────────────────────────────────────────────────
+  // NEAREST LOCATION
+  // ─────────────────────────────────────────────────────────────────────────
 
-    final locs = state.allLocations.where((l) => l.type == type).toList();
-    if (locs.isEmpty) return null;
+  GreenLocation? nearestOf(
+    GreenLocationType type,
+  ) {
+    final userPos = state.userLocation;
+
+    if (userPos == null) {
+      return null;
+    }
+
+    final locs = state.allLocations
+        .where((l) => l.type == type)
+        .toList();
+
+    if (locs.isEmpty) {
+      return null;
+    }
 
     locs.sort((a, b) {
-      final dA = _repo.distanceBetween(userPos, a.position);
-      final dB = _repo.distanceBetween(userPos, b.position);
+      final dA = _repo.distanceBetween(
+        userPos,
+        a.position,
+      );
+
+      final dB = _repo.distanceBetween(
+        userPos,
+        b.position,
+      );
+
       return dA.compareTo(dB);
     });
 
@@ -198,9 +434,17 @@ class MapViewModel extends StateNotifier<MapState> {
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVIDER
+// ─────────────────────────────────────────────────────────────────────────────
 
 final mapViewModelProvider =
-    StateNotifierProvider<MapViewModel, MapState>((ref) {
-  return MapViewModel(ref.read(mapRepositoryProvider));
-});
+    StateNotifierProvider<
+        MapViewModel,
+        MapState>(
+  (ref) {
+    return MapViewModel(
+      ref.read(mapRepositoryProvider),
+    );
+  },
+);
