@@ -7,8 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
+import 'features/auth/views/onboarding_screen.dart' ;
 
-import 'features/auth/views/onboarding_screen.dart';
 import 'features/app_shell/app_shell.dart';
 
 void main() async {

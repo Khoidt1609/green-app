@@ -416,20 +416,46 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
                               radius: 68,
                               backgroundColor: AppColors.primaryGreen
                                   .withOpacity(0.16),
-                              backgroundImage:
-                                  _avatarUrl != null && _avatarUrl!.isNotEmpty
-                                  ? NetworkImage(_avatarUrl!)
-                                  : null,
-                              child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                                  ? Text(
-                                      avatarInitial,
-                                      style: const TextStyle(
-                                        color: AppColors.primaryDarkGreen,
-                                        fontSize: 44,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    )
-                                  : null,
+                              child: ClipOval(
+                                child: SizedBox(
+                                  width: 136,
+                                  height: 136,
+                                  child: (_avatarUrl != null &&
+                                          _avatarUrl!.isNotEmpty)
+                                      ? Image.network(
+                                          _avatarUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            return Center(
+                                              child: Text(
+                                                avatarInitial,
+                                                style: const TextStyle(
+                                                  color: AppColors
+                                                      .primaryDarkGreen,
+                                                  fontSize: 44,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            avatarInitial,
+                                            style: const TextStyle(
+                                              color: AppColors
+                                                  .primaryDarkGreen,
+                                              fontSize: 44,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
                             ),
                             Positioned(
                               right: 2,

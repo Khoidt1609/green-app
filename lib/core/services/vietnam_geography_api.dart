@@ -10,9 +10,8 @@ class VietnamGeographyApi {
     }
 
     try {
-      final jsonString = await rootBundle.loadString('data/vietnam_provinces.json');
-      final decoded = jsonDecode(jsonString);
-      _cachedData = decoded is List ? decoded : [];
+      final jsonString = await rootBundle.loadString('assets/data/vietnam_provinces.json');
+      _cachedData = jsonDecode(jsonString) as List;
       return _cachedData!;
     } catch (e) {
       print('❌ Lỗi load JSON: $e');

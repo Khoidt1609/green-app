@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';import 'package:cloud_firestore/cloud_firestore.dart'; // Import thêm thư viện này
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/services/auth_service.dart';
@@ -10,6 +11,16 @@ final authViewModelProvider = NotifierProvider<AuthViewModel, AsyncValue<void>>(
 
 class AuthViewModel extends Notifier<AsyncValue<void>> {
   late final AuthService _authService;
+
+  Future<void> _saveSessionUser(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_uid', uid);
+  }
+
+  Future<void> _clearSessionUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_uid');
+  }
 
   @override
   AsyncValue<void> build() {
@@ -40,6 +51,8 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
             return 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!';
           }
         }
+
+        await _saveSessionUser(user.uid);
       }
       // -------------------------------------------------------------
 
@@ -74,6 +87,8 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
             return 'Tài khoản Google này đã bị hệ thống khóa!';
           }
         }
+
+        await _saveSessionUser(user.uid);
       }
       // -----------------------------------------
 
@@ -122,6 +137,9 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
         city: city.trim(),
         district: district.trim(),
       );
+
+      await FirebaseAuth.instance.signOut();
+      await _clearSessionUser();
 
       state = const AsyncData(null);
 
