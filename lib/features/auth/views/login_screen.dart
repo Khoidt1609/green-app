@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:green_app/core/providers/auth_providers.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../router/app_router.dart';
 import '../viewmodels/auth_view_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,8 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-
-  Future<void> _onLoginPressed() async {
+Future<void> _onLoginPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -41,31 +42,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text.trim(),
         );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
       );
-      return;
+    } else {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await ref.read(authServiceProvider).saveUserSession(user.uid);
+      }
+      // 1. Hiện thông báo cho user vui
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đăng nhập thành công!'), backgroundColor: AppColors.primaryGreen),
+      );
+
+      // 2. Cú hích điều hướng: Dùng pushNamedAndRemoveUntil để dọn sạch stack cũ
+      // Lệnh này giúp bạn vào thẳng AppShell ngay bây giờ.
+      Navigator.pushNamedAndRemoveUntil(context, AppRouter.home, (route) => false);
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Đăng nhập thành công. Chào mừng đến GreenStep!',
-        ),
-      ),
-    );
-
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(
-      AppRouter.home,
-      (route) => false,
-    );
   }
 
   Future<void> _onGooglePressed() async {
