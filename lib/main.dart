@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
+import 'features/app_shell/app_shell.dart';
+import 'features/auth/views/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,8 +88,8 @@ class _GreenStepAppState extends ConsumerState<GreenStepApp> {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       onGenerateRoute: AppRouter.onGenerateRoute,
-      // Nếu có UID trong máy thì vào thẳng Home, không thì vào Onboarding
-      initialRoute: _savedUid != null ? AppRouter.home : AppRouter.onboarding,
+      // Dùng home trực tiếp để tránh null route khi Flutter tự dựng initial routes trên web.
+      home: _savedUid != null ? const AppShell() : const OnboardingScreen(),
     );
   }
 }

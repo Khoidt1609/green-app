@@ -11,7 +11,7 @@ class VietnamGeographyApi {
     }
     
     try {
-      final jsonString = await rootBundle.loadString('data/vietnam_provinces.json');
+      final jsonString = await rootBundle.loadString('assets/data/vietnam_provinces.json');
       _cachedData = jsonDecode(jsonString) as List;
       return _cachedData!;
     } catch (e) {
