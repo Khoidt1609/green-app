@@ -85,7 +85,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? (data!['username'] as String).trim()
         : fallbackUsername;
 
-    final address = data?['address'] as Map<String, dynamic>?;
+
+final address = data?['address'] as Map<String, dynamic>? ?? {};
 
     _cityController.text = (address?['city'] as String?)?.trim() ?? '';
 

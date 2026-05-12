@@ -1,67 +1,292 @@
 // lib/features/leaderboard/views/leaderboard_screen.dart
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:green_app/core/services/vietnam_geography_api.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/leaderboard_model.dart';
 import '../viewmodels/leaderboard_viewmodel.dart';
 
-const _kGold   = Color(0xFFFFD700);
-const _kSilver = Color(0xFFB0BEC5);
-const _kBronze = Color(0xFFCD7F32);
+const _kGold = Color(0xFFFFD54F);
+const _kSilver = Color(0xFFCFD8DC);
+const _kBronze = Color(0xFFD7A56D);
 
 class LeaderboardScreen extends ConsumerWidget {
   const LeaderboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state  = ref.watch(leaderboardViewModelProvider);
-    final vm     = ref.read(leaderboardViewModelProvider.notifier);
-    final canPop = Navigator.of(context).canPop();
+    final state = ref.watch(
+      leaderboardViewModelProvider,
+    );
+
+    final vm = ref.read(
+      leaderboardViewModelProvider.notifier,
+    );
+
+    final canPop =
+        Navigator.of(context).canPop();
 
     return Scaffold(
+      backgroundColor:
+          Theme.of(context).scaffoldBackgroundColor,
+
       appBar: AppBar(
-        // Nút back: hiện khi được push từ màn hình khác
+        elevation: 0,
+
+        centerTitle: true,
+
         leading: canPop
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                ),
               )
             : null,
+
         title: const Text(
-          '🏆  Bảng Xếp Hạng',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          '🏆 Bảng Xếp Hạng',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 19,
+          ),
         ),
+
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: vm.refresh,
             tooltip: 'Làm mới',
+
+            onPressed: state.isRefreshing
+                ? null
+                : vm.refresh,
+
+            icon: state.isRefreshing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                        CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(
+                    Icons.refresh_rounded,
+                  ),
           ),
         ],
       ),
+
       body: Column(
         children: [
-          // Controls: period + scope + filter chips
-          _Controls(state: state, vm: vm),
+          _TopControls(
+            state: state,
+            vm: vm,
+          ),
+          Expanded(
+            child: _buildBody(
+              context,
+              state,
+              vm,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Prize banner — giải tuần < giải tháng, lấy từ period.prizes
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-            child: _PrizeBanner(state: state),
+  Widget _buildBody(
+    BuildContext context,
+    LeaderboardState state,
+    LeaderboardViewModel vm,
+  ) {
+    if (state.isLoading &&
+        state.entries.isEmpty) {
+      return const _LoadingView();
+    }
+
+    if (state.hasError) {
+      return _ErrorView(
+        message: state.error!,
+        onRetry: vm.refresh,
+      );
+    }
+
+    if (state.entries.isEmpty) {
+      return _EmptyView(
+        scopeLabel:
+            state.scope.emptyLabel,
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primaryGreen,
+
+      onRefresh: vm.refresh,
+
+      child: CustomScrollView(
+        physics:
+            const BouncingScrollPhysics(),
+
+        slivers: [
+          SliverToBoxAdapter(
+  child: Padding(
+    padding:
+        const EdgeInsets.fromLTRB(
+      16,
+      4,
+      16,
+      10,
+    ),
+
+    child: _RewardBanner(
+      period: state.period,
+    ),
+  ),
+),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(
+                16,
+                4,
+                16,
+                0,
+              ),
+              child: _Podium(
+                entries: state.top3,
+                prizes: state.prizes,
+              ),
+            ),
           ),
 
-          // Body
-          Expanded(
-            child: state.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primaryGreen))
-                : state.error != null
-                    ? _ErrorView(error: state.error!, onRetry: vm.loadLeaderboard)
-                    : state.entries.isEmpty
-                        ? _EmptyView(scopeLabel: state.scopeLabel)
-                        : _Body(state: state, vm: vm),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 18),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 16,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.leaderboard_rounded,
+                    color:
+                        AppColors.primaryGreen,
+                    size: 18,
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  Text(
+                    state.hasActiveFilter
+                        ? 'BXH ${state.selectedFilter}'
+                        : 'BẢNG XẾP HẠNG',
+
+                    style: const TextStyle(
+                      color:
+                          AppColors.textSecondary,
+                      fontSize: 12,
+                      letterSpacing: 1,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 10),
+          ),
+
+          SliverPadding(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 16,
+            ),
+
+            sliver: SliverList(
+              delegate:
+                  SliverChildBuilderDelegate(
+                (context, index) {
+                  final entry =
+                      state.entries[index];
+
+                  if (entry.rank <= 3) {
+                    return const SizedBox
+                        .shrink();
+                  }
+
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 10,
+                    ),
+
+                    child: _LeaderboardTile(
+                      entry: entry,
+                      prize: state.prizes[
+                          entry.rank],
+                    ),
+                  );
+                },
+
+                childCount:
+                    state.entries.length,
+              ),
+            ),
+          ),
+
+          if (state.showPinnedCurrentUser)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(
+                  16,
+                  18,
+                  16,
+                  24,
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'VỊ TRÍ CỦA BẠN',
+                      style: TextStyle(
+                        color:
+                            AppColors.textSecondary,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    _LeaderboardTile(
+                      entry:
+                          state.currentUserEntry!,
+                      isPinnedCurrentUser:
+                          true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 20),
           ),
         ],
       ),
@@ -69,98 +294,718 @@ class LeaderboardScreen extends ConsumerWidget {
   }
 }
 
-// ─── Controls ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 
-class _Controls extends StatelessWidget {
-  const _Controls({required this.state, required this.vm});
-  final LeaderboardState    state;
+class _TopControls extends StatelessWidget {
+  const _TopControls({
+    required this.state,
+    required this.vm,
+  });
+
+  final LeaderboardState state;
+
   final LeaderboardViewModel vm;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+      padding:
+          const EdgeInsets.fromLTRB(
+        16,
+        14,
+        16,
+        10,
+      ),
+
       child: Column(
         children: [
-          // Row 1: Period + Scope
           Row(
             children: [
               Expanded(
-                child: _Toggle<LeaderboardPeriod>(
-                  options:  LeaderboardPeriod.values,
-                  selected: state.period,
-                  label:    (p) => p.label,
-                  onSelect: vm.setPeriod,
+                child: _SegmentControl<
+                    LeaderboardPeriod>(
+                  options:
+                      LeaderboardPeriod.values,
+
+                  selected:
+                      state.period,
+
+                  labelBuilder:
+                      (e) => e.label,
+
+                  onChanged:
+                      vm.setPeriod,
                 ),
               ),
+
               const SizedBox(width: 10),
+
               Expanded(
-                child: _Toggle<LeaderboardScope>(
-                  options:  LeaderboardScope.values,
-                  selected: state.scope,
-                  label:    (s) => s.label,
-                  onSelect: vm.setScope,
+                child: _SegmentControl<
+                    LeaderboardScope>(
+                  options:
+                      LeaderboardScope.values,
+
+                  selected:
+                      state.scope,
+
+                  labelBuilder:
+                      (e) => e.label,
+
+                  onChanged:
+                      vm.setScope,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Row 2: Filter chips (quận hoặc tỉnh)
-          if (state.filterOptions.isNotEmpty)
-            _FilterRow(
-              options:    state.filterOptions,
-              selected:   state.selectedFilter,
-              scopeLabel: state.scopeLabel,
-              onChanged:  vm.setFilter,
+
+          const SizedBox(height: 12),
+
+          InkWell(
+            borderRadius:
+                BorderRadius.circular(14),
+
+            onTap: () {
+              _showFilterSheet(
+                context,
+                state,
+                vm,
+              );
+            },
+
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surface,
+
+                borderRadius:
+                    BorderRadius.circular(
+                  14,
+                ),
+
+                border: Border.all(
+                  color:
+                      Theme.of(context)
+                          .dividerColor,
+                ),
+              ),
+
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.filter_alt_rounded,
+                    color:
+                        AppColors.primaryGreen,
+                    size: 20,
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Text(
+                      state.selectedFilter ??
+                          'Lọc theo ${state.scope.label}',
+
+                      style: TextStyle(
+                        color:
+                            state.selectedFilter !=
+                                    null
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                : AppColors
+                                    .textSecondary,
+
+                        fontSize: 14,
+
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                  ),
+
+                  if (state.isFilterLoading)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color:
+                            AppColors.primaryGreen,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons
+                          .keyboard_arrow_down_rounded,
+                    ),
+                ],
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterSheet(
+    BuildContext context,
+    LeaderboardState state,
+    LeaderboardViewModel vm,
+  ) {
+    showModalBottomSheet(
+      context: context,
+
+      isScrollControlled: true,
+
+      backgroundColor:
+          Colors.transparent,
+
+      builder: (_) {
+        return _FilterSheet(
+          state: state,
+          vm: vm,
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+
+class _FilterSheet extends StatefulWidget {
+  const _FilterSheet({
+    required this.state,
+    required this.vm,
+  });
+
+  final LeaderboardState state;
+  final LeaderboardViewModel vm;
+
+  @override
+  State<_FilterSheet> createState() =>
+      _FilterSheetState();
+}
+
+class _FilterSheetState
+    extends State<_FilterSheet> {
+  final _api = VietnamGeographyApi();
+
+  List<dynamic> provinces = [];
+  List<dynamic> districts = [];
+
+  bool isLoading = true;
+
+  String search = '';
+
+  String? selectedProvinceCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProvinces();
+  }
+
+  Future<void> _loadProvinces() async {
+    try {
+      final data =
+          await _api.fetchProvinces();
+
+      setState(() {
+        provinces = data;
+        isLoading = false;
+      });
+    } catch (_) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadDistricts(
+    String provinceCode,
+  ) async {
+    setState(() {
+      districts = [];
+      selectedProvinceCode =
+          provinceCode;
+      
+      search = '';
+
+    });
+
+    try {
+      final data =
+          await _api.fetchDistricts(
+        provinceCode,
+      );
+
+      setState(() {
+        districts = data;
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCity =
+        widget.state.scope ==
+            LeaderboardScope.city;
+
+    final items = isCity
+        ? provinces
+            .where((e) {
+              final name =
+                  (e['name'] ?? '')
+                      .toString()
+                      .toLowerCase();
+
+              return name.contains(
+                search.toLowerCase(),
+              );
+            })
+            .toList()
+        : districts
+            .where((e) {
+              final name =
+                  (e['name'] ?? '')
+                      .toString()
+                      .toLowerCase();
+
+              return name.contains(
+                search.toLowerCase(),
+              );
+            })
+            .toList();
+
+    return Container(
+      height:
+          MediaQuery.of(context)
+                  .size
+                  .height *
+              0.84,
+
+      decoration: BoxDecoration(
+        color:
+            Theme.of(context)
+                .colorScheme
+                .surface,
+
+        borderRadius:
+            const BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+      ),
+
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+
+          Container(
+            width: 46,
+            height: 5,
+
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+
+              borderRadius:
+                  BorderRadius.circular(
+                999,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 20,
+            ),
+
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isCity
+                        ? 'Chọn Tỉnh / Thành'
+                        : 'Chọn Quận / Huyện',
+
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
+                  ),
+                ),
+
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+
+                    await widget.vm
+                        .clearFilter();
+                  },
+
+                  child:
+                      const Text('Xóa lọc'),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 20,
+            ),
+
+            child: TextField(
+              onChanged: (v) {
+                setState(() {
+                  search = v;
+                });
+              },
+
+              decoration: InputDecoration(
+                hintText: 'Tìm kiếm...',
+
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                ),
+
+                filled: true,
+
+                fillColor:
+                    Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+
+                border:
+                    OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
+
+                  borderSide:
+                      BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          if (!isCity)
+  Padding(
+    padding:
+        const EdgeInsets.symmetric(
+      horizontal: 20,
+    ),
+
+    child: Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+      children: [
+        const Text(
+          'Tỉnh / Thành phố',
+
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        Container(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 14,
+          ),
+
+          decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
+
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
+          ),
+
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+
+              value:
+                  selectedProvinceCode,
+
+              hint: const Text(
+                'Chọn tỉnh/thành',
+              ),
+
+              items: provinces.map((e) {
+                return DropdownMenuItem<
+                    String>(
+                  value:
+                      e['code'].toString(),
+
+                  child: Text(
+                    e['name'],
+                    overflow:
+                        TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+
+              onChanged: (value) {
+                if (value == null) return;
+
+                _loadDistricts(value);
+              },
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 18),
+      ],
+    ),
+  ),
+
+          Expanded(
+            child: isLoading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(
+                      color:
+                          AppColors.primaryGreen,
+                    ),
+                  )
+                : ListView.separated(
+                    padding:
+                        const EdgeInsets.symmetric(
+                      horizontal: 20,
+                    ),
+
+                    itemBuilder:
+                        (_, index) {
+                      final item =
+                          items[index];
+
+                      final name =
+                          item['name'];
+
+                      final selected =
+                          widget.state
+                                  .selectedFilter ==
+                              name;
+
+                      return InkWell(
+                        borderRadius:
+                            BorderRadius.circular(
+                          16,
+                        ),
+
+                        onTap: () async {
+                          Navigator.pop(
+                            context,
+                          );
+
+                          await widget.vm
+                              .setFilter(
+                            name,
+                          );
+                        },
+
+                        child: Container(
+                          padding:
+                              const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 15,
+                          ),
+
+                          decoration:
+                              BoxDecoration(
+                            color: selected
+                                ? AppColors
+                                    .primaryGreen
+                                    .withValues(
+                                      alpha:
+                                          0.1,
+                                    )
+                                : Colors
+                                    .transparent,
+
+                            borderRadius:
+                                BorderRadius.circular(
+                              16,
+                            ),
+
+                            border:
+                                Border.all(
+                              color: selected
+                                  ? AppColors
+                                      .primaryGreen
+                                  : Theme.of(
+                                          context)
+                                      .dividerColor,
+                            ),
+                          ),
+
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  name,
+
+                                  style:
+                                      TextStyle(
+                                    fontWeight:
+                                        FontWeight
+                                            .w700,
+
+                                    color: selected
+                                        ? AppColors
+                                            .primaryGreen
+                                        : null,
+                                  ),
+                                ),
+                              ),
+
+                              if (selected)
+                                const Icon(
+                                  Icons
+                                      .check_circle_rounded,
+
+                                  color: AppColors
+                                      .primaryGreen,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+
+                    separatorBuilder:
+                        (_, __) =>
+                            const SizedBox(
+                      height: 10,
+                    ),
+
+                    itemCount: items.length,
+                  ),
+          ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 }
 
-class _Toggle<T> extends StatelessWidget {
-  const _Toggle({
+// ─────────────────────────────────────────────────────────────
+
+class _SegmentControl<T>
+    extends StatelessWidget {
+  const _SegmentControl({
     required this.options,
     required this.selected,
-    required this.label,
-    required this.onSelect,
+    required this.labelBuilder,
+    required this.onChanged,
   });
+
   final List<T> options;
+
   final T selected;
-  final String Function(T) label;
-  final void Function(T) onSelect;
+
+  final String Function(T)
+      labelBuilder;
+
+  final void Function(T) onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
-      height: 38,
+      height: 42,
+
       decoration: BoxDecoration(
-        color:        scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(10),
-        border:       Border.all(color: scheme.outline),
+        color: Theme.of(context)
+            .colorScheme
+            .surface,
+
+        borderRadius:
+            BorderRadius.circular(14),
+
+        border: Border.all(
+          color:
+              Theme.of(context)
+                  .dividerColor,
+        ),
       ),
+
       child: Row(
-        children: options.map((opt) {
-          final active = opt == selected;
+        children: options.map((e) {
+          final active =
+              e == selected;
+
           return Expanded(
             child: GestureDetector(
-              onTap: () => onSelect(opt),
+              onTap: () {
+                onChanged(e);
+              },
+
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                margin: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color:        active ? AppColors.primaryGreen : Colors.transparent,
-                  borderRadius: BorderRadius.circular(7),
+                duration:
+                    const Duration(
+                  milliseconds: 220,
                 ),
+
+                margin:
+                    const EdgeInsets.all(4),
+
+                decoration:
+                    BoxDecoration(
+                  color: active
+                      ? AppColors
+                          .primaryGreen
+                      : Colors
+                          .transparent,
+
+                  borderRadius:
+                      BorderRadius.circular(
+                    10,
+                  ),
+                ),
+
                 child: Center(
                   child: Text(
-                    label(opt),
+                    labelBuilder(e),
+
                     style: TextStyle(
-                      color:      active ? Colors.white : AppColors.textSecondary,
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      fontSize:   12,
+                      fontWeight:
+                          FontWeight.w700,
+
+                      color: active
+                          ? Colors.white
+                          : AppColors
+                              .textSecondary,
+
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -173,502 +1018,937 @@ class _Toggle<T> extends StatelessWidget {
   }
 }
 
-class _FilterRow extends StatelessWidget {
-  const _FilterRow({
-    required this.options,
-    required this.selected,
-    required this.scopeLabel,
-    required this.onChanged,
+// ─────────────────────────────────────────────────────────────
+
+class _RewardBanner
+    extends StatelessWidget {
+  const _RewardBanner({
+    required this.period,
   });
-  final List<String>     options;
-  final String?          selected;
-  final String           scopeLabel;
-  final void Function(String?) onChanged;
+
+  final LeaderboardPeriod period;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _Chip(
-            label:    'Tất cả',
-            selected: selected == null,
-            onTap:    () => onChanged(null),
-          ),
-          const SizedBox(width: 8),
-          ...options.map((o) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _Chip(
-                  label:    o,
-                  selected: selected == o,
-                  onTap:    () => onChanged(o),
-                ),
-              )),
-        ],
+    final prizes =
+        period.prizes;
+
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 16,
       ),
-    );
-  }
-}
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onTap});
-  final String   label;
-  final bool     selected;
-  final VoidCallback onTap;
+      child: Container(
+        padding:
+            const EdgeInsets.all(14),
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color:        selected ? AppColors.primaryGreen : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-          border:       Border.all(color: selected ? AppColors.primaryGreen : scheme.outline),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color:      selected ? Colors.white : AppColors.textSecondary,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            fontSize:   12,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Prize Banner ─────────────────────────────────────────────────────────────
-
-class _PrizeBanner extends StatelessWidget {
-  const _PrizeBanner({required this.state});
-  final LeaderboardState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final prizes = state.prizes; // từ period.prizes — tuần < tháng
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color:        scheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border:       Border.all(color: scheme.outline),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _PrizeItem(medal: '🥇', label: 'Top 1', amount: prizes[1]!),
-          _PrizeItem(medal: '🥈', label: 'Top 2', amount: prizes[2]!),
-          _PrizeItem(medal: '🥉', label: 'Top 3', amount: prizes[3]!),
-          Column(
-            children: [
-              Text(
-                state.period == LeaderboardPeriod.week
-                    ? '📅  Giải Tuần'
-                    : '📅  Giải Tháng',
-                style: const TextStyle(
-                  color:      AppColors.primaryGreen,
-                  fontWeight: FontWeight.w700,
-                  fontSize:   12,
-                ),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'Reset tự động',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
-              ),
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryGreen,
+              AppColors.primaryDarkGreen,
             ],
           ),
-        ],
+
+          borderRadius:
+              BorderRadius.circular(
+            22,
+          ),
+
+          boxShadow: [
+            BoxShadow(
+              color: AppColors
+                  .primaryGreen
+                  .withValues(alpha: 0.25),
+
+              blurRadius: 16,
+
+              offset:
+                  const Offset(0, 6),
+            ),
+          ],
+        ),
+
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Text(
+                  '🎁',
+                  style:
+                      TextStyle(fontSize: 24),
+                ),
+
+                const SizedBox(width: 10),
+
+                Expanded(
+                  child: Text(
+                    period.rewardTitle,
+
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight:
+                          FontWeight.w800,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+
+                Container(
+                  padding:
+                      const EdgeInsets
+                          .symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+
+                  decoration:
+                      BoxDecoration(
+                    color: Colors.white
+                        .withValues(
+                          alpha: 0.18,
+                        ),
+
+                    borderRadius:
+                        BorderRadius
+                            .circular(
+                      999,
+                    ),
+                  ),
+
+                  child: Text(
+                    period.label,
+
+                    style:
+                        const TextStyle(
+                      color:
+                          Colors.white,
+                      fontWeight:
+                          FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .spaceBetween,
+
+              children: [
+                _PrizeBox(
+                  medal: '🥇',
+                  amount:
+                      prizes[1] ?? '',
+                ),
+
+                _PrizeBox(
+                  medal: '🥈',
+                  amount:
+                      prizes[2] ?? '',
+                ),
+
+                _PrizeBox(
+                  medal: '🥉',
+                  amount:
+                      prizes[3] ?? '',
+                ),
+
+                _PrizeBox(
+                  medal: '🏅',
+                  amount:
+                      prizes[4] ?? '',
+                ),
+
+                _PrizeBox(
+                  medal: '🎖️',
+                  amount:
+                      prizes[5] ?? '',
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _PrizeItem extends StatelessWidget {
-  const _PrizeItem({required this.medal, required this.label, required this.amount});
-  final String medal, label, amount;
+// ─────────────────────────────────────────────────────────────
+
+class _PrizeBox extends StatelessWidget {
+  const _PrizeBox({
+    required this.medal,
+    required this.amount,
+  });
+
+  final String medal;
+
+  final String amount;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(medal, style: const TextStyle(fontSize: 20)),
-        const SizedBox(height: 2),
-        Text(amount,
-            style: TextStyle(
-                color:      Theme.of(context).colorScheme.onSurface,
-                fontSize:   13,
-                fontWeight: FontWeight.w800)),
-        Text(label,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+        Text(
+          medal,
+          style:
+              const TextStyle(fontSize: 22),
+        ),
+
+        const SizedBox(height: 6),
+
+        Text(
+          amount,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 11,
+          ),
+        ),
       ],
     );
   }
 }
+// ─────────────────────────────────────────────────────────────
 
-// ─── Body ─────────────────────────────────────────────────────────────────────
+// FIX OVERFLOW PODIUM
+// THAY TOÀN BỘ class _Podium
 
-class _Body extends StatelessWidget {
-  const _Body({required this.state, required this.vm});
-  final LeaderboardState    state;
-  final LeaderboardViewModel vm;
+class _Podium extends StatelessWidget {
+  const _Podium({
+    required this.entries,
+    required this.prizes,
+  });
+
+  final List<LeaderboardEntry> entries;
+  final Map<int, String> prizes;
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      color:    AppColors.primaryGreen,
-      onRefresh: vm.refresh,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Podium Top 3
-          if (state.top3.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
-                child: _Podium(top3: state.top3, prizes: state.prizes),
-              ),
-            ),
+    final first =
+        entries.where((e) => e.rank == 1).firstOrNull;
 
-          // Header danh sách đầy đủ
-          SliverToBoxAdapter(
+    final second =
+        entries.where((e) => e.rank == 2).firstOrNull;
+
+    final third =
+        entries.where((e) => e.rank == 3).firstOrNull;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: second != null
+                ? _PodiumCard(
+                    entry: second,
+                    height: 155,
+                    color: _kSilver,
+                    medal: '🥈',
+                    prize:
+                        prizes[2] ?? '',
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: first != null
+                ? _PodiumCard(
+                    entry: first,
+                    height: 190,
+                    color: _kGold,
+                    medal: '🥇',
+                    prize:
+                        prizes[1] ?? '',
+                    isChampion: true,
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: third != null
+                ? _PodiumCard(
+                    entry: third,
+                    height: 140,
+                    color: _kBronze,
+                    medal: '🥉',
+                    prize:
+                        prizes[3] ?? '',
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+
+// THAY TOÀN BỘ class _PodiumCard
+
+class _PodiumCard extends StatelessWidget {
+  const _PodiumCard({
+    required this.entry,
+    required this.height,
+    required this.color,
+    required this.medal,
+    required this.prize,
+    this.isChampion = false,
+  });
+
+  final LeaderboardEntry entry;
+  final double height;
+  final Color color;
+  final String medal;
+  final String prize;
+  final bool isChampion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isChampion)
+          const Padding(
+            padding:
+                EdgeInsets.only(bottom: 4),
+            child: Text(
+              '👑',
+              style:
+                  TextStyle(fontSize: 24),
+            ),
+          ),
+
+        CircleAvatar(
+          radius: isChampion ? 34 : 28,
+          backgroundColor: color,
+          child: Text(
+            entry.avatarInitial,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        SizedBox(
+          height: 38,
+          child: Column(
+            children: [
+              Flexible(
+                child: Text(
+                  entry.displayName,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontWeight:
+                        FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+
+              if (entry.locationLabel
+                  .isNotEmpty)
+                Flexible(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      top: 2,
+                    ),
+                    child: Text(
+                      entry.locationLabel,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      textAlign:
+                          TextAlign.center,
+                      style:
+                          const TextStyle(
+                        fontSize: 10,
+                        color: AppColors
+                            .textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        Container(
+          height: height,
+
+          decoration: BoxDecoration(
+            color: color,
+
+            borderRadius:
+                const BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
+          ),
+
+          child: Center(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 6),
-              child: Row(
-                children: const [
-                  Icon(Icons.format_list_numbered_rounded,
-                      color: AppColors.primaryGreen, size: 15),
-                  SizedBox(width: 6),
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 10,
+              ),
+
+              child: Column(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+
+                children: [
                   Text(
-                    'BẢNG ĐẦY ĐỦ',
-                    style: TextStyle(
-                      color:       AppColors.textSecondary,
-                      fontSize:    11,
-                      fontWeight:  FontWeight.w700,
-                      letterSpacing: 1.1,
+                    medal,
+                    style: const TextStyle(
+                      fontSize: 28,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    '#${entry.rank}',
+                    style: const TextStyle(
+                      fontWeight:
+                          FontWeight.w900,
+                      fontSize: 22,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Flexible(
+                    child: Text(
+                      '${entry.points} điểm',
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      textAlign:
+                          TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight:
+                            FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Container(
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+
+                    decoration:
+                        BoxDecoration(
+                      color: Colors.white
+                          .withValues(
+                        alpha: 0.28,
+                      ),
+
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        999,
+                      ),
+                    ),
+
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        prize,
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight
+                                  .w800,
+                          fontSize: 10,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // Toàn bộ danh sách (bao gồm cả top 3 để scroll liền mạch)
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, i) {
-                final entry = state.entries[i];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  child: _EntryRow(entry: entry, prize: state.prizes[entry.rank]),
-                );
-              },
-              childCount: state.entries.length,
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Podium ───────────────────────────────────────────────────────────────────
-
-class _Podium extends StatefulWidget {
-  const _Podium({required this.top3, required this.prizes});
-  final List<LeaderboardEntry> top3;
-  final Map<int, String>       prizes;
-
-  @override
-  State<_Podium> createState() => _PodiumState();
-}
-
-class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
-  late final List<AnimationController> _ctrl;
-  late final List<Animation<double>>   _fade;
-  late final List<Animation<Offset>>   _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = List.generate(3, (i) => AnimationController(
-        vsync: this, duration: Duration(milliseconds: 400 + i * 100)));
-    _fade  = _ctrl.map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut)).toList();
-    _slide = _ctrl.map((c) => Tween<Offset>(
-          begin: const Offset(0, 0.2), end: Offset.zero)
-        .animate(CurvedAnimation(parent: c, curve: Curves.easeOutCubic))).toList();
-    for (int i = 0; i < _ctrl.length; i++) {
-      Future.delayed(Duration(milliseconds: i * 80),
-          () { if (mounted) _ctrl[i].forward(); });
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final c in _ctrl) c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = widget.top3;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
-      decoration: BoxDecoration(
-        color:        Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border:       Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // 🥈 rank 2 (trái)
-          if (t.length > 1)
-            Expanded(
-              child: FadeTransition(opacity: _fade[1],
-                child: SlideTransition(position: _slide[1],
-                  child: _PodiumCard(entry: t[1], medal: _kSilver,
-                      isFirst: false, prize: widget.prizes[2]))),
-            )
-          else const Spacer(),
-          const SizedBox(width: 8),
-          // 🥇 rank 1 (giữa, cao hơn)
-          Expanded(
-            child: FadeTransition(opacity: _fade[0],
-              child: SlideTransition(position: _slide[0],
-                child: _PodiumCard(entry: t[0], medal: _kGold,
-                    isFirst: true, prize: widget.prizes[1]))),
-          ),
-          const SizedBox(width: 8),
-          // 🥉 rank 3 (phải)
-          if (t.length > 2)
-            Expanded(
-              child: FadeTransition(opacity: _fade[2],
-                child: SlideTransition(position: _slide[2],
-                  child: _PodiumCard(entry: t[2], medal: _kBronze,
-                      isFirst: false, prize: widget.prizes[3]))),
-            )
-          else const Spacer(),
-        ],
-      ),
-    );
-  }
-}
-
-class _PodiumCard extends StatelessWidget {
-  const _PodiumCard({
-    required this.entry,
-    required this.medal,
-    required this.isFirst,
-    this.prize,
-  });
-  final LeaderboardEntry entry;
-  final Color  medal;
-  final bool   isFirst;
-  final String? prize;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final sz = isFirst ? 56.0 : 44.0;
-    final fz = isFirst ? 14.0 : 12.0;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (isFirst)
-          const Text('👑', style: TextStyle(fontSize: 22))
-        else
-          const SizedBox(height: 26),
-        const SizedBox(height: 4),
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              width: sz, height: sz,
-              decoration: BoxDecoration(
-                color:        medal.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(isFirst ? 18 : 14),
-                border:       Border.all(color: medal, width: isFirst ? 2.5 : 2),
-              ),
-              child: Center(
-                child: Text(entry.avatarInitial,
-                    style: TextStyle(color: medal,
-                        fontSize: isFirst ? 22 : 17, fontWeight: FontWeight.w900)),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(color: medal, borderRadius: BorderRadius.circular(5)),
-              child: Text('#${entry.rank}',
-                  style: const TextStyle(color: Colors.black,
-                      fontSize: 9, fontWeight: FontWeight.w900)),
-            ),
-          ],
         ),
-        const SizedBox(height: 8),
-        Text(entry.displayName,
-            style: TextStyle(color: scheme.onSurface,
-                fontSize: fz, fontWeight: FontWeight.w800),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center),
-        // ── Location từ Firebase address ──
-        if (entry.locationLabel.isNotEmpty)
-          Text(entry.locationLabel,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
-              maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-        const SizedBox(height: 3),
-        Text(_fmtPts(entry.points),
-            style: const TextStyle(color: AppColors.primaryGreen,
-                fontSize: 11, fontWeight: FontWeight.w700)),
-        if (prize != null) ...[
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color:        scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              border:       Border.all(color: scheme.outline),
-            ),
-            child: Text(prize!,
-                style: TextStyle(color: scheme.onSurface,
-                    fontSize: 11, fontWeight: FontWeight.w700)),
-          ),
-        ],
-        const SizedBox(height: 6),
-        Text(entry.rank == 1 ? '🥇' : entry.rank == 2 ? '🥈' : '🥉',
-            style: const TextStyle(fontSize: 17)),
       ],
     );
   }
 }
 
-// ─── Entry Row ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 
-class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry, this.prize});
+class _LeaderboardTile
+    extends StatelessWidget {
+  const _LeaderboardTile({
+    required this.entry,
+    this.prize,
+    this.isPinnedCurrentUser =
+        false,
+  });
+
   final LeaderboardEntry entry;
-  final String?          prize;
+  final String? prize;
+  final bool isPinnedCurrentUser;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final isTop3 = entry.rank <= 3;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color:        scheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border:       Border.all(color: scheme.outline),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 30,
-            child: Text('#${entry.rank}',
-                style: const TextStyle(color: AppColors.primaryGreen,
-                    fontWeight: FontWeight.w800, fontSize: 14)),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.18),
-            child: Text(entry.avatarInitial,
-                style: const TextStyle(color: AppColors.primaryGreen,
-                    fontWeight: FontWeight.w800, fontSize: 14)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(entry.displayName,
-                    style: TextStyle(color: scheme.onSurface,
-                        fontWeight: FontWeight.w700, fontSize: 14),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                // ── Location từ Firebase address ──
-                if (entry.locationLabel.isNotEmpty)
-                  Text(entry.locationLabel,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-              ],
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(22),
+
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 10,
+          sigmaY: 10,
+        ),
+
+        child: Container(
+          padding:
+              const EdgeInsets.all(16),
+
+          decoration: BoxDecoration(
+            color: isPinnedCurrentUser
+                ? AppColors.primaryGreen
+                    .withValues(
+                    alpha: 0.10,
+                  )
+                : Theme.of(context)
+                    .colorScheme
+                    .surface,
+
+            borderRadius:
+                BorderRadius.circular(
+              22,
+            ),
+
+            border: Border.all(
+              color: isPinnedCurrentUser
+                  ? AppColors
+                      .primaryGreen
+                  : Theme.of(context)
+                      .dividerColor,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+
+          child: Row(
             children: [
-              Text(_fmtPts(entry.points),
-                  style: const TextStyle(color: AppColors.primaryGreen,
-                      fontWeight: FontWeight.w800, fontSize: 15)),
-              if (prize != null)
-                Text(prize!,
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              Container(
+                width: 44,
+                height: 44,
+
+                alignment:
+                    Alignment.center,
+
+                decoration:
+                    BoxDecoration(
+                  color: isTop3
+                      ? _rankColor(
+                          entry.rank,
+                        )
+                      : AppColors
+                          .primaryGreen
+                          .withValues(
+                          alpha: 0.12,
+                        ),
+
+                  borderRadius:
+                      BorderRadius
+                          .circular(
+                    14,
+                  ),
+                ),
+
+                child: Text(
+                  '#${entry.rank}',
+                  style: TextStyle(
+                    fontWeight:
+                        FontWeight.w900,
+
+                    color: isTop3
+                        ? Colors.black
+                        : AppColors
+                            .primaryGreen,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
+              CircleAvatar(
+                radius: 24,
+                backgroundColor:
+                    AppColors.primaryGreen,
+                child: Text(
+                  entry.avatarInitial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            entry
+                                .displayName,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+                            style:
+                                const TextStyle(
+                              fontWeight:
+                                  FontWeight
+                                      .w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+
+                        if (isPinnedCurrentUser)
+                          Container(
+                            padding:
+                                const EdgeInsets
+                                    .symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration:
+                                BoxDecoration(
+                              color: AppColors
+                                  .primaryGreen,
+
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                999,
+                              ),
+                            ),
+                            child:
+                                const Text(
+                              'Bạn',
+                              style:
+                                  TextStyle(
+                                color: Colors
+                                    .white,
+                                fontSize: 10,
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    if (entry.locationLabel
+                        .isNotEmpty)
+                      Text(
+                        entry.locationLabel,
+                        style:
+                            const TextStyle(
+                          color: AppColors
+                              .textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+
+                    const SizedBox(height: 8),
+
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 16,
+                          color:
+                              Colors.orange,
+                        ),
+
+                        const SizedBox(
+                          width: 5,
+                        ),
+
+                        Text(
+                          '${entry.points} điểm',
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight
+                                    .w800,
+                            color:
+                                AppColors
+                                    .primaryGreen,
+                          ),
+                        ),
+
+                        if (prize != null)
+                          Padding(
+                            padding:
+                                const EdgeInsets
+                                    .only(
+                              left: 10,
+                            ),
+                            child:
+                                Container(
+                              padding:
+                                  const EdgeInsets
+                                      .symmetric(
+                                horizontal:
+                                    8,
+                                vertical: 4,
+                              ),
+                              decoration:
+                                  BoxDecoration(
+                                color: AppColors
+                                    .accentOrange
+                                    .withValues(
+                                  alpha: 0.12,
+                                ),
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                  999,
+                                ),
+                              ),
+                              child: Text(
+                                prize!,
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      AppColors
+                                          .accentOrange,
+                                  fontSize:
+                                      10,
+                                  fontWeight:
+                                      FontWeight
+                                          .w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Color _rankColor(int rank) {
+    switch (rank) {
+      case 1:
+        return _kGold;
+      case 2:
+        return _kSilver;
+      case 3:
+        return _kBronze;
+      default:
+        return AppColors.primaryGreen;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+
+class _LoadingView
+    extends StatelessWidget {
+  const _LoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child:
+          CircularProgressIndicator(
+        color: AppColors.primaryGreen,
       ),
     );
   }
 }
 
-// ─── Empty / Error ─────────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────
 class _EmptyView extends StatelessWidget {
-  const _EmptyView({required this.scopeLabel});
+  const _EmptyView({
+    required this.scopeLabel,
+  });
+
   final String scopeLabel;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.people_outline_rounded,
-          color: AppColors.textSecondary, size: 52),
-      const SizedBox(height: 12),
-      Text('Chưa có dữ liệu cho $scopeLabel này.',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-          textAlign: TextAlign.center),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 32,
+        ),
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            const Text(
+              '🏆',
+              style:
+                  TextStyle(fontSize: 70),
+            ),
+
+            const SizedBox(height: 18),
+
+            const Text(
+              'Chưa có dữ liệu',
+              style: TextStyle(
+                fontWeight:
+                    FontWeight.w800,
+                fontSize: 22,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Text(
+              'Hiện chưa có người chơi nào trong bộ lọc $scopeLabel.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color:
+                    AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+// ─────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.error, required this.onRetry});
-  final String   error;
-  final VoidCallback onRetry;
+  const _ErrorView({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final Future<void> Function()
+      onRetry;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.wifi_off_rounded, color: AppColors.textSecondary, size: 48),
-      const SizedBox(height: 12),
-      Text(error,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-          textAlign: TextAlign.center),
-      const SizedBox(height: 16),
-      OutlinedButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Thử lại')),
-    ]),
-  );
-}
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 28,
+        ),
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 70,
+            ),
 
-String _fmtPts(int n) {
-  if (n >= 1000) {
-    final k = n / 1000;
-    return k == k.truncateToDouble() ? '${k.toInt()}k pts' : '${k.toStringAsFixed(1)}k pts';
+            const SizedBox(height: 16),
+
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight:
+                    FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            ElevatedButton.icon(
+              onPressed: onRetry,
+
+              style:
+                  ElevatedButton.styleFrom(
+                backgroundColor:
+                    AppColors.primaryGreen,
+                foregroundColor:
+                    Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                shape:
+                    RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
+                ),
+              ),
+
+              icon: const Icon(
+                Icons.refresh_rounded,
+              ),
+
+              label: const Text(
+                'Thử lại',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
-  return '$n pts';
 }
