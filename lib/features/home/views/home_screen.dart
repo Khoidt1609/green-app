@@ -57,39 +57,7 @@ class HomeScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
 
                       // ── Quick actions ─────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _QuickActionTile(
-                              icon: Icons.camera_alt_outlined,
-                              label: 'Camera',
-                              tint: AppColors.primaryGreen,
-                              onTap: () =>
-                                  Navigator.of(context).pushNamed(AppRouter.tasks),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _QuickActionTile(
-                              icon: Icons.card_giftcard_outlined,
-                              label: 'Store',
-                              tint: AppColors.accentOrange,
-                              onTap: () => Navigator.of(context)
-                                  .pushNamed(AppRouter.rewardWallet),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _QuickActionTile(
-                              icon: Icons.location_on_outlined,
-                              label: 'Map',
-                              tint: AppColors.earthyBrown,
-                              onTap: () =>
-                                  Navigator.of(context).pushNamed(AppRouter.greenMap),
-                            ),
-                          ),
-                        ],
-                      ),
+                     
                       const SizedBox(height: 14),
 
                       // ── Store banner ──────────────────────────
@@ -114,18 +82,7 @@ class HomeScreen extends ConsumerWidget {
                                 Navigator.of(context).pushNamed(AppRouter.tasks),
                             child: Row(
                               children: [
-                                Text(
-                                  'Xem tất cả',
-                                  style: TextStyle(
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 18,
-                                  color: AppColors.primaryGreen,
-                                ),
+                                
                               ],
                             ),
                           ),
@@ -158,6 +115,7 @@ class HomeScreen extends ConsumerWidget {
                       // ── Achievements ──────────────────────────
                       _AchievementSection(
                         achievements: state.recentAchievements,
+                        cityRank: state.cityRank,
                       ),
                       const SizedBox(height: 8),
                     ],
@@ -279,6 +237,7 @@ class _ProfileCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              // Avatar
               Container(
                 width: 54,
                 height: 54,
@@ -301,9 +260,11 @@ class _ProfileCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+              // Name (Đã xóa dòng Level ở dưới)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       state.displayName,
@@ -314,15 +275,6 @@ class _ProfileCard extends StatelessWidget {
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Level ${state.level} · GreenStep',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
                     ),
                   ],
                 ),
@@ -337,54 +289,16 @@ class _ProfileCard extends StatelessWidget {
           const SizedBox(height: 14),
           _ScoreLine(
             label: 'Điểm tuần',
-            resetLabel: 'Reset Chủ nhật',
+            resetLabel: '',
             valueText: '${state.weekPoints}',
-            totalText: '/600',
-            progress: state.weekProgress,
             accent: AppColors.primaryGreen,
-            percentText: '${(state.weekProgress * 100).round()}%',
           ),
           const SizedBox(height: 14),
           _ScoreLine(
             label: 'Điểm tháng',
-            resetLabel: 'Reset cuối tháng',
+            resetLabel: '',
             valueText: '${state.monthPoints}',
-            totalText: '/2.000',
-            progress: state.monthProgress,
             accent: AppColors.earthyBrown,
-            percentText: '${(state.monthProgress * 100).round()}%',
-          ),
-          const SizedBox(height: 14),
-          // Level progress
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Level',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                '${state.totalPoints % 1000} / 1.000 pts',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: state.levelProgress,
-              minHeight: 7,
-              backgroundColor: AppColors.surfaceMutedLight,
-              color: AppColors.primaryGreen,
-            ),
           ),
         ],
       ),
@@ -403,21 +317,14 @@ class _StatBadgeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _HeaderStatCard(
-            icon: Icons.local_fire_department_outlined,
-            iconColor: AppColors.accentOrange,
-            value: '${state.streakDays}d',
-            label: 'Streak',
-          ),
-        ),
+        
         const SizedBox(width: 8),
         Expanded(
           child: _HeaderStatCard(
             icon: Icons.check_circle_outline,
             iconColor: AppColors.primaryGreen,
             value: '${state.tasksDoneCount}',
-            label: 'Tasks Done',
+            label: 'Hoàn thành',
           ),
         ),
         const SizedBox(width: 8),
@@ -426,7 +333,7 @@ class _StatBadgeRow extends StatelessWidget {
             icon: Icons.star_border,
             iconColor: AppColors.earthyBrown,
             value: state.cityRank != null ? '#${state.cityRank}' : '--',
-            label: 'City Rank',
+            label: 'Xếp hạng',
           ),
         ),
       ],
@@ -489,10 +396,7 @@ class _StoreBanner extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.primaryGreen,
-          ),
+          
         ],
       ),
     );
@@ -624,9 +528,10 @@ class _TaskCard extends StatelessWidget {
 // ─── Achievement Section ────────────────────────────────────────────────────────
 
 class _AchievementSection extends StatelessWidget {
-  const _AchievementSection({required this.achievements});
+  const _AchievementSection({required this.achievements, this.cityRank});
 
   final List<Map<String, dynamic>> achievements;
+  final int? cityRank;
 
   static const _tints = [
     AppColors.primaryGreen,
@@ -662,6 +567,11 @@ class _AchievementSection extends StatelessWidget {
               letterSpacing: 0.6,
             ),
           ),
+          const SizedBox(height: 8),
+          // Personalized rank message
+          if (cityRank != null)
+            _RankMessageBanner(rank: cityRank!),
+          if (cityRank == null) const SizedBox(height: 0),
           const SizedBox(height: 12),
           if (achievements.isEmpty)
             Container(
@@ -891,87 +801,47 @@ class _ScoreLine extends StatelessWidget {
     required this.label,
     required this.resetLabel,
     required this.valueText,
-    required this.totalText,
-    required this.progress,
     required this.accent,
-    required this.percentText,
   });
 
   final String label;
   final String resetLabel;
   final String valueText;
-  final String totalText;
-  final double progress;
   final Color accent;
-  final String percentText;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row( // Thay Column bằng Row luôn cho gọn nếu chỉ có 1 dòng
       children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.calendar_month_outlined,
-              color: AppColors.textSecondary,
-              size: 14,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              resetLabel,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              valueText,
-              style: TextStyle(
-                color: accent,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(
-              totalText,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ],
+        const Icon(
+          Icons.calendar_month_outlined,
+          color: AppColors.textSecondary,
+          size: 14,
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: AppColors.surfaceMutedLight,
-            color: accent,
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
           ),
         ),
-        const SizedBox(height: 6),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            percentText,
-            style: const TextStyle(
-              color: AppColors.primaryDarkGreen,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
+        const SizedBox(width: 8),
+        Text(
+          resetLabel,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 11,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          valueText,
+          style: TextStyle(
+            color: accent,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
@@ -995,7 +865,7 @@ class _QuickActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      
       borderRadius: BorderRadius.circular(16),
       child: Container(
         height: 84,
@@ -1067,6 +937,69 @@ class _AchievementCard extends StatelessWidget {
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RankMessageBanner extends StatelessWidget {
+  const _RankMessageBanner({required this.rank});
+
+  final int rank;
+
+  String getRankMessage(int? rank) {
+    if (rank == null || rank == 0) {
+      return 'Hoàn thành nhiệm vụ để xuất hiện trên bảng xếp hạng nhé! 🌱';
+    }
+
+    if (rank == 1) {
+      return 'Thật tuyệt vời! Bạn là Quán quân Xanh. Hãy giữ vững ngai vàng nhé! 👑';
+    }
+
+    if (rank <= 3) {
+      return 'Xuất sắc! Bạn đang ở rất gần ngôi đầu. Chỉ một chút nữa thôi! 🏆';
+    }
+
+    if (rank <= 10) {
+      return 'Chúc mừng! Bạn đã lọt vào nhóm 10 người dẫn đầu. Rất đáng nể! ⭐';
+    }
+
+    return 'Bạn đang đứng thứ #$rank. Hoàn thành thêm nhiệm vụ để bứt phá nhé! 💪';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = getRankMessage(rank);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.emoji_events_outlined, color: AppColors.primaryGreen),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              msg,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Text(
+            '#$rank',
+            style: const TextStyle(
+              color: AppColors.primaryGreen,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
