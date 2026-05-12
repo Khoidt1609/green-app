@@ -85,7 +85,7 @@ class AuthService {
 
       await createdUser.updateDisplayName(displayName.trim());
 
-      await _firestore.collection('users').doc(createdUser.uid).set({
+      final signUpPayload = {
         'uid': createdUser.uid,
         'displayName': displayName.trim(),
         'username': normalizedUsername,
@@ -114,7 +114,11 @@ class AuthService {
         // Timestamps
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      print('AUTH_SERVICE signUp uid=${createdUser.uid} payload=$signUpPayload');
+
+      await _firestore.collection('users').doc(createdUser.uid).set(signUpPayload);
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on TimeoutException {
@@ -333,7 +337,7 @@ class AuthService {
 
     await user.updateDisplayName(displayName.trim());
 
-    await _firestore.collection('users').doc(user.uid).set({
+    final updatePayload = {
       'displayName': displayName.trim(),
       'username': normalizedUsername,
       'avatarUrl': avatarUrl ?? '',
@@ -342,7 +346,14 @@ class AuthService {
         'district': district.trim(),
       },
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+
+    print('AUTH_SERVICE updateProfile uid=${user.uid} payload=$updatePayload');
+
+    await _firestore.collection('users').doc(user.uid).set(
+      updatePayload,
+      SetOptions(merge: true),
+    );
   }
 
   // =========================================================

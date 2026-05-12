@@ -21,8 +21,9 @@ class AppRouter {
   static const String tasks = '/tasks';
   static const String leaderboard = '/leaderboard';
   static const String greenMap = '/green-map';
-  static const String rewardWallet = '/reward-wallet';
   static const String admin = '/admin';
+  static const String rewardWallet = '/reward-wallet';
+  
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -54,6 +55,10 @@ class AppRouter {
       case greenMap:
         return MaterialPageRoute<void>(
           builder: (_) => const GreenMapScreen(),
+        );
+      case admin:
+        return MaterialPageRoute<void>(
+          builder: (_) => const AdminMainScreen(),
         );
       // FIX: trỏ về RewardWalletScreen thay vì AppShell
       case rewardWallet:

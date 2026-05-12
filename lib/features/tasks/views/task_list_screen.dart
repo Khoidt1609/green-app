@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../providers/task_filter_provider.dart';
+import '../views/submission_history_screen.dart';
 import '../widgets/task_card.dart';
 
 class TaskListScreen extends ConsumerWidget {
@@ -28,16 +29,35 @@ class TaskListScreen extends ConsumerWidget {
         backgroundColor: AppColors.primaryGreen,
         centerTitle: true,
         elevation: 0,
+        actions: [
+          Tooltip(
+            message: 'Lịch sử nộp bài',
+            child: IconButton(
+              icon: const Icon(Icons.history_rounded, color: Colors.white),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SubmissionHistoryScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
+
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Thanh tìm kiếm
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: TextField(
                 controller: TextEditingController(text: searchQuery)
-                  ..selection = TextSelection.collapsed(offset: searchQuery.length),
+                  ..selection =
+                  TextSelection.collapsed(offset: searchQuery.length),
                 onChanged: (value) {
                   ref.read(searchQueryProvider.notifier).state = value;
                 },
@@ -56,6 +76,7 @@ class TaskListScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            // Thanh lọc Category
             SizedBox(
               height: 40,
               child: ListView.builder(
@@ -71,8 +92,9 @@ class TaskListScreen extends ConsumerWidget {
                       width: 105,
                       child: GestureDetector(
                         onTap: () {
-                          ref.read(selectedCategoryProvider.notifier).state =
-                              category;
+                          ref
+                              .read(selectedCategoryProvider.notifier)
+                              .state = category;
                         },
                         child: Container(
                           alignment: Alignment.center,
@@ -90,8 +112,9 @@ class TaskListScreen extends ConsumerWidget {
                           child: Text(
                             category,
                             style: TextStyle(
-                              color:
-                              isSelected ? Colors.white : Colors.black54,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.black54,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -106,6 +129,7 @@ class TaskListScreen extends ConsumerWidget {
 
             const SizedBox(height: 12),
 
+            // Lưới nhiệm vụ
             Expanded(
               child: filteredTasks.isEmpty
                   ? const Center(

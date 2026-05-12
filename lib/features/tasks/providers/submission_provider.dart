@@ -11,28 +11,26 @@ import 'package:image_picker/image_picker.dart';
 import '../../../data/models/submission_model.dart';
 import '../../../data/models/task_model.dart';
 
-// ── Providers ──────────────────────────────────────────────────────────────────
-
-/// Danh sách file ảnh đang chọn (tự reset khi sheet đóng)
+// Danh sách file ảnh đang chọn (tự reset khi sheet đóng)
 final pickedImagesProvider =
     StateProvider.autoDispose<List<File>>((ref) => []);
 
-/// Trạng thái đang upload / submit
+//Trạng thái đang upload / submit
 final submissionLoadingProvider =
     StateProvider.autoDispose<bool>((ref) => false);
 
-/// Service chính để thao tác ảnh & nộp bài
+//Service chính để thao tác ảnh & nộp bài
 final submissionServiceProvider =
     Provider.autoDispose((ref) => SubmissionService(ref));
 
-// ── Cloudinary config ──────────────────────────────────────────────────────────
+//Cloudinary config
 
 const _cloudName = 'dfvtfibtx';
 const _uploadPreset = 'greenstep_preset';
 const _cloudinaryUrl =
     'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
 
-// ── SubmissionService ──────────────────────────────────────────────────────────
+//SubmissionService
 
 class SubmissionService {
   SubmissionService(this._ref);
@@ -41,7 +39,7 @@ class SubmissionService {
   final _picker = ImagePicker();
   final _dio = Dio();
 
-  // ── Pick images ─────────────────────────────────────────────────────────────
+  //Pick images
 
   Future<void> pickImage(ImageSource source) async {
     if (source == ImageSource.camera) {
@@ -70,7 +68,7 @@ class SubmissionService {
     _ref.read(pickedImagesProvider.notifier).state = current;
   }
 
-  // ── Submit task ─────────────────────────────────────────────────────────────
+  //Submit task
 
   Future<bool> submitTask(TaskModel task, String note) async {
     final images = _ref.read(pickedImagesProvider);
@@ -82,10 +80,10 @@ class SubmissionService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      // 1. Upload ảnh lên Cloudinary
+      //Upload ảnh lên Cloudinary
       final downloadUrls = await _uploadImages(images, user.uid);
 
-      // 2. Lưu submission vào Firestore
+      //Lưu submission vào Firestore
       final submission = SubmissionModel(
         id: '',
         userId: user.uid,
@@ -105,7 +103,7 @@ class SubmissionService {
 
       await FirebaseFirestore.instance.collection('submissions').add(data);
 
-      // 3. Reset ảnh đã chọn
+      //Reset ảnh đã chọn
       _ref.read(pickedImagesProvider.notifier).state = [];
       return true;
     } catch (_) {

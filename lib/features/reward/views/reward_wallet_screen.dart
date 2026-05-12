@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:green_app/data/services/bank_service.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/reward_model.dart';
@@ -41,17 +42,21 @@ class _RewardWalletScreenState extends ConsumerState<RewardWalletScreen>
     ref.listen<RewardState>(rewardViewModelProvider, (prev, next) {
       if (next.successMessage != null &&
           next.successMessage != prev?.successMessage) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(next.successMessage!),
-          backgroundColor: AppColors.primaryGreen,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.successMessage!),
+            backgroundColor: AppColors.primaryGreen,
+          ),
+        );
         vm.clearMessages();
       }
       if (next.error != null && next.error != prev?.error) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(next.error!),
-          backgroundColor: colorScheme.error,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: colorScheme.error,
+          ),
+        );
         vm.clearMessages();
       }
     });
@@ -86,13 +91,14 @@ class _RewardWalletScreenState extends ConsumerState<RewardWalletScreen>
             child: state.isLoading
                 ? Center(
                     child: CircularProgressIndicator(
-                        color: colorScheme.primary))
+                      color: colorScheme.primary,
+                    ),
+                  )
                 : TabBarView(
                     controller: _tabController,
                     children: [
                       _RewardListTab(state: state, vm: vm),
-                      _TransactionHistoryTab(
-                          transactions: state.transactions),
+                      _TransactionHistoryTab(transactions: state.transactions),
                     ],
                   ),
           ),
@@ -120,8 +126,7 @@ class _RewardWalletScreenState extends ConsumerState<RewardWalletScreen>
         dividerColor: Colors.transparent,
         labelColor: colorScheme.onPrimary,
         unselectedLabelColor: AppColors.textSecondary,
-        labelStyle:
-            const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
         tabs: const [
           Tab(text: '🏪  Gói Thưởng'),
           Tab(text: '📋  Lịch Sử'),
@@ -239,8 +244,7 @@ class _PointsProgressBar extends StatelessWidget {
     final prev = next == milestones.first
         ? 0
         : milestones[milestones.indexOf(next) - 1];
-    final progress =
-        ((currentPoints - prev) / (next - prev)).clamp(0.0, 1.0);
+    final progress = ((currentPoints - prev) / (next - prev)).clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,10 +253,8 @@ class _PointsProgressBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(
             value: progress,
-            backgroundColor:
-                colorScheme.onPrimary.withValues(alpha: 0.25),
-            valueColor:
-                AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+            backgroundColor: colorScheme.onPrimary.withValues(alpha: 0.25),
+            valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
             minHeight: 6,
           ),
         ),
@@ -320,7 +322,7 @@ class _RewardListTab extends StatelessWidget {
 
   void _showRedeemSheet(
     BuildContext context,
-      RewardModel reward,
+    RewardModel reward,
     RewardState state,
     RewardViewModel vm,
   ) {
@@ -423,7 +425,9 @@ class _RewardCard extends StatelessWidget {
                 Text(
                   reward.description,
                   style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12),
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -432,10 +436,11 @@ class _RewardCard extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color:
-                            colorScheme.primary.withValues(alpha: 0.12),
+                        color: colorScheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -466,12 +471,9 @@ class _RewardCard extends StatelessWidget {
             onTap: canAfford && !isRedeeming ? onRedeem : null,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: canAfford
-                    ? colorScheme.primary
-                    : colorScheme.outline,
+                color: canAfford ? colorScheme.primary : colorScheme.outline,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -513,7 +515,7 @@ class _RedeemSheet extends StatefulWidget {
 }
 
 class _RedeemSheetState extends State<_RedeemSheet> {
-  late final TextEditingController _bankCodeCtrl;
+  String? _selectedBankCode;
   late final TextEditingController _accountNoCtrl;
   late final TextEditingController _accountNameCtrl;
   final _formKey = GlobalKey<FormState>();
@@ -524,16 +526,21 @@ class _RedeemSheetState extends State<_RedeemSheet> {
   void initState() {
     super.initState();
     final saved = widget.savedBankInfo;
-    _bankCodeCtrl = TextEditingController(text: saved?['bankCode'] ?? '');
-    _accountNoCtrl =
-        TextEditingController(text: saved?['accountNo'] ?? '');
-    _accountNameCtrl =
-        TextEditingController(text: saved?['accountName'] ?? '');
+    if (saved != null && saved['bankCode'] != null) {
+      final savedCode = saved['bankCode']!;
+      final exists = BankService.supportedBanks.any(
+        (b) => b['code'] == savedCode,
+      );
+      if (exists) {
+        _selectedBankCode = savedCode;
+      }
+    }
+    _accountNoCtrl = TextEditingController(text: saved?['accountNo'] ?? '');
+    _accountNameCtrl = TextEditingController(text: saved?['accountName'] ?? '');
   }
 
   @override
   void dispose() {
-    _bankCodeCtrl.dispose();
     _accountNoCtrl.dispose();
     _accountNameCtrl.dispose();
     super.dispose();
@@ -547,7 +554,8 @@ class _RedeemSheetState extends State<_RedeemSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Form(
@@ -606,8 +614,7 @@ class _RedeemSheetState extends State<_RedeemSheet> {
                           ),
                           Text(
                             _formatVND(reward.valueVND),
-                            style:
-                                const TextStyle(color: _gold, fontSize: 13),
+                            style: const TextStyle(color: _gold, fontSize: 13),
                           ),
                         ],
                       ),
@@ -646,14 +653,23 @@ class _RedeemSheetState extends State<_RedeemSheet> {
                 ),
               ),
               const SizedBox(height: 10),
-              _buildField(
-                context: context,
-                controller: _bankCodeCtrl,
-                label: 'Mã ngân hàng',
-                hint: 'VD: VCB, TCB, MB...',
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Vui lòng nhập mã ngân hàng'
-                    : null,
+              DropdownButtonFormField<String>(
+                value: _selectedBankCode,
+                decoration: InputDecoration(
+                  hintText: 'Chọn ngân hàng',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  border: const OutlineInputBorder(),
+                ),
+                menuMaxHeight: 300,
+                items: BankService.supportedBanks.map((bank) {
+                  return DropdownMenuItem(
+                    value: bank['code'],
+                    child: Text(bank['name']!),
+                  );
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedBankCode = val),
+                validator: (val) =>
+                (val == null || val.trim().isEmpty)? 'Vui lòng chọn ngân hàng' : null,
               ),
               const SizedBox(height: 10),
               _buildField(
@@ -686,7 +702,7 @@ class _RedeemSheetState extends State<_RedeemSheet> {
                       : () {
                           if (_formKey.currentState!.validate()) {
                             widget.onConfirm(
-                              _bankCodeCtrl.text.trim().toUpperCase(),
+                              _selectedBankCode!,
                               _accountNoCtrl.text.trim(),
                               _accountNameCtrl.text.trim().toUpperCase(),
                             );
@@ -697,7 +713,9 @@ class _RedeemSheetState extends State<_RedeemSheet> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text('Xác nhận đổi thưởng'),
                 ),
@@ -756,13 +774,15 @@ class _TransactionHistoryTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_rounded,
-                color: AppColors.textSecondary, size: 48),
+            Icon(
+              Icons.receipt_long_rounded,
+              color: AppColors.textSecondary,
+              size: 48,
+            ),
             const SizedBox(height: 12),
             Text(
               'Chưa có giao dịch nào.',
-              style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
           ],
         ),
@@ -797,22 +817,22 @@ class _TransactionTile extends StatelessWidget {
     final statusColor = isCompleted
         ? colorScheme.primary
         : isCancelled
-            ? colorScheme.error
-            : _pendingOrange;
+        ? colorScheme.error
+        : _pendingOrange;
 
     final statusLabel = isCompleted
         ? 'Đã thanh toán'
         : isCancelled
-            ? 'Đã hủy'
-            : 'Đang xử lý';
+        ? 'Đã hủy'
+        : 'Đang xử lý';
 
     // FIX: TransactionModel dùng rewardId → hiển thị từ userName/type
     // rewardName không có trong TransactionModel, dùng type thay thế
     final displayTitle = tx.rewardId != null
         ? 'Đổi thưởng #${tx.rewardId!.substring(0, 6)}'
         : tx.type == 'earn'
-            ? 'Nhận điểm'
-            : 'Giao dịch';
+        ? 'Nhận điểm'
+        : 'Giao dịch';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -841,8 +861,8 @@ class _TransactionTile extends StatelessWidget {
               isCompleted
                   ? Icons.check_circle_outline_rounded
                   : isCancelled
-                      ? Icons.cancel_outlined
-                      : Icons.pending_outlined,
+                  ? Icons.cancel_outlined
+                  : Icons.pending_outlined,
               color: statusColor,
               size: 22,
             ),
@@ -867,22 +887,25 @@ class _TransactionTile extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         statusLabel,
-                        style:
-                            TextStyle(color: statusColor, fontSize: 10),
+                        style: TextStyle(color: statusColor, fontSize: 10),
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       _formatDate(tx.createdAt),
                       style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 10),
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                      ),
                     ),
                   ],
                 ),
@@ -902,8 +925,7 @@ class _TransactionTile extends StatelessWidget {
               ),
               Text(
                 tx.status == 'completed' ? 'Đã nhận' : 'Chờ xử lý',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 10),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
               ),
             ],
           ),

@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../router/app_router.dart';
+import '../../../core/services/vietnam_geography_api.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -28,10 +29,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   final _usernameController = TextEditingController();
 
-  final _cityController = TextEditingController();
-
-  final _districtController = TextEditingController();
-
+  final VietnamGeographyApi _geoApi = VietnamGeographyApi();
+  List<dynamic> _provinces =[];
+  List<dynamic> _districts =[];
+  String? _selectedProvince;
+  String? _selectedDistrict;
   bool _isSaving = false;
   bool _isLoading = true;
 
@@ -46,15 +48,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _loadProvinces();
+    await _loadProfile();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _usernameController.dispose();
-    _cityController.dispose();
-    _districtController.dispose();
     super.dispose();
   }
 
@@ -88,9 +93,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
 final address = data?['address'] as Map<String, dynamic>? ?? {};
 
-    _cityController.text = (address?['city'] as String?)?.trim() ?? '';
-
-    _districtController.text = (address?['district'] as String?)?.trim() ?? '';
+    final cityFromDb = (address['city'] as String?)?.trim();
+    
+    // Map province name hoặc code sang province code
+    if (cityFromDb != null && cityFromDb.isNotEmpty) {
+      // Kiểm xem có phải code không
+      final isCode = _provinces.any((p) => p['code'].toString() == cityFromDb);
+      if (isCode) {
+        _selectedProvince = cityFromDb;
+      } else {
+        // Tìm code từ tên province (database lưu tên)
+        final province = _provinces.firstWhere(
+          (p) => p['name'].toString().toLowerCase() == cityFromDb.toLowerCase(),
+          orElse: () => null,
+        );
+        _selectedProvince = province != null ? province['code'].toString() : null;
+      }
+    } else {
+      // Database lưu empty → set null
+      _selectedProvince = null;
+    }
+    
+    _selectedDistrict = (address['district'] as String?)?.trim();
+    if (_selectedProvince != null){
+      await _loadDistricts(_selectedProvince!);
+    }
 
     _avatarUrl = (data?['avatarUrl'] as String?)?.trim();
 
@@ -103,6 +130,26 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
     setState(() {
       _isLoading = false;
     });
+  }
+  Future<void> _loadProvinces() async {
+    try {
+      final provinces = await _geoApi.fetchProvinces();
+      setState(() {
+        _provinces = provinces;
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
+  Future<void> _loadDistricts(String provinceId) async {
+    try {
+      final districts = await _geoApi.fetchDistricts(provinceId);
+      setState(() {
+        _districts = districts;
+      });
+    } catch (e) {
+      // Handle error
+    }
   }
 
   Future<void> _saveProfile({bool showSuccess = true}) async {
@@ -120,6 +167,38 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
       return;
     }
 
+    // Kiểm tra province/district
+    if (_selectedProvince == null || _selectedProvince!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn tỉnh/thành phố.')),
+      );
+      return;
+    }
+
+    if (_selectedDistrict == null || _selectedDistrict!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn quận/huyện.')),
+      );
+      return;
+    }
+
+    // Kiểm tra province/district có hợp lệ không
+    final provinceExists = _provinces.any((p) => p['code'].toString() == _selectedProvince);
+    if (!provinceExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tỉnh/thành phố không hợp lệ. Vui lòng chọn lại.')),
+      );
+      return;
+    }
+
+    final districtExists = _districts.any((d) => d['name'].toString() == _selectedDistrict);
+    if (!districtExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quận/huyện không hợp lệ. Vui lòng chọn lại.')),
+      );
+      return;
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -127,11 +206,34 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
     final authService = ref.read(authServiceProvider);
 
     try {
+      // Debug: In ra để xem giá trị
+      print('DEBUG: _selectedProvince = $_selectedProvince');
+      print('DEBUG: _selectedDistrict = $_selectedDistrict');
+      print('DEBUG: _provinces length = ${_provinces.length}');
+      if (_provinces.isNotEmpty) {
+        print('DEBUG: First province = ${_provinces.first}');
+      }
+
+      // Lấy tên province từ code
+      String provinceName = '';
+      try {
+        final selectedProvinceObj = _provinces.firstWhere(
+          (p) => p['code'].toString() == _selectedProvince,
+        );
+        provinceName = selectedProvinceObj['name'] ?? '';
+        print('DEBUG: Found province name = $provinceName');
+      } catch (e) {
+        print('DEBUG: Error finding province: $e');
+        provinceName = _selectedProvince ?? '';
+      }
+
+      print('DEBUG: Saving with provinceName = $provinceName');
+
       await authService.updateProfile(
         displayName: _nameController.text,
         username: _usernameController.text,
-        city: _cityController.text,
-        district: _districtController.text,
+        city: provinceName,
+        district: _selectedDistrict!,
         avatarUrl: _avatarUrl,
       );
 
@@ -549,25 +651,107 @@ final address = data?['address'] as Map<String, dynamic>? ?? {};
                           ),
                         ),
 
-                        _ProfileInfoRow(
-                          label: 'Tỉnh / Thành phố',
-                          value: _cityController.text,
-                          hint: 'Chưa cập nhật',
-                          onEdit: () => _editField(
-                            title: 'Tỉnh / Thành phố',
-                            controller: _cityController,
-                          ),
-                        ),
+                        // MỚI
+const SizedBox(height: 12),
+const Text(
+  'Tỉnh / Thành phố',
+  style: TextStyle(
+    color: AppColors.textSecondary,
+    fontSize: 13,
+  ),
+),
+const SizedBox(height: 6),
+_provinces.isEmpty
+    ? Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.borderLight),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          'Đang tải tỉnh/thành phố...',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      )
+    : DropdownButtonFormField<String>(
+        value: _selectedProvince != null && _provinces.any((p) => p['code'].toString() == _selectedProvince)
+            ? _selectedProvince
+            : null,
+        items: _provinces.map<DropdownMenuItem<String>>((province) {
+          return DropdownMenuItem<String>(
+            value: province['code'].toString(),
+            child: Text(province['name']),
+          );
+        }).toList(),
+        onChanged: (value) {
+          setState(() {
+            _selectedProvince = value;
+            _selectedDistrict = null;
+            _districts = [];
+          });
+          if (value != null) {
+            _loadDistricts(value);
+          }
+        },
+        decoration: const InputDecoration(
+          prefixIcon: Icon(Icons.location_city),
+          border: OutlineInputBorder(),
+        ),
+        validator: (value) => value == null ? 'Vui lòng chọn thành phố' : null,
+      ),
 
-                        _ProfileInfoRow(
-                          label: 'Quận / Huyện',
-                          value: _districtController.text,
-                          hint: 'Chưa cập nhật',
-                          onEdit: () => _editField(
-                            title: 'Quận / Huyện',
-                            controller: _districtController,
-                          ),
-                        ),
+const SizedBox(height: 12),
+const Text(
+  'Quận / Huyện',
+  style: TextStyle(
+    color: AppColors.textSecondary,
+    fontSize: 13,
+  ),
+),
+const SizedBox(height: 6),
+_selectedProvince == null || _selectedProvince!.isEmpty
+    ? Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.borderLight),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          'Chọn tỉnh/thành phố trước',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      )
+    : _districts.isEmpty
+        ? Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.borderLight),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'Đang tải quận/huyện...',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          )
+        : DropdownButtonFormField<String>(
+            value: _selectedDistrict,
+            items: _districts.map<DropdownMenuItem<String>>((district) {
+              return DropdownMenuItem<String>(
+                value: district['name'],
+                child: Text(district['name']),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedDistrict = value;
+              });
+            },
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.map_outlined),
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) => value == null ? 'Vui lòng chọn quận/huyện' : null,
+          ),
                       ],
                     ),
                   ),
