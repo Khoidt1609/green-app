@@ -83,7 +83,7 @@ class TaskCard extends ConsumerWidget {
 
             // Nội dung bên dưới
             Expanded(
-              flex: 4,
+              flex: 5,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
