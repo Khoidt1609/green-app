@@ -22,8 +22,8 @@ class MapRepository {
   MapRepository()
       : _dio = Dio(
           BaseOptions(
-            connectTimeout: const Duration(seconds: 25),
-            receiveTimeout: const Duration(seconds: 40),
+            connectTimeout: const Duration(seconds: 100),
+            receiveTimeout: const Duration(seconds: 100),
             headers: {
               'User-Agent': 'GreenApp/1.0 (Flutter Android) - Da Nang Green Map',
               'Accept': 'application/json',
