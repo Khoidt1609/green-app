@@ -940,19 +940,19 @@ class _AchievementSection extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Thành tích gần đây',
+                          'Địa phương',
                           style: TextStyle(
                             color: Color(0xFF10261E),
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         SizedBox(height: 3),
                         Text(
-                          'Cập nhật tự động theo dữ liệu của bạn',
+                          'Xếp hạng tuần và tháng của bạn',
                           style: TextStyle(
                             color: Color(0xFF6E8077),
-                            fontSize: 11,
+                            fontSize: 17,
                           ),
                         ),
                       ],
@@ -1071,7 +1071,7 @@ class _AchievementSection extends ConsumerWidget {
                   'Xếp hạng $period',
                   style: const TextStyle(
                     color: Color(0xFF10261E),
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1082,7 +1082,7 @@ class _AchievementSection extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF6E8077),
-                    fontSize: 11,
+                    fontSize: 15,
                   ),
                 ),
               ],
@@ -1147,7 +1147,7 @@ class _AchievementSection extends ConsumerWidget {
                   title,
                   style: const TextStyle(
                     color: Color(0xFF10261E),
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1158,7 +1158,7 @@ class _AchievementSection extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF6E8077),
-                    fontSize: 11,
+                    fontSize: 15,
                   ),
                 ),
               ],
@@ -1195,7 +1195,7 @@ class _SectionHeader extends StatelessWidget {
             trailing!,
             style: const TextStyle(
               color: Color(0xFF2CC185),
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
