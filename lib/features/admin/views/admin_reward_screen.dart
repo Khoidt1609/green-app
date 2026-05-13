@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:green_app/features/admin/providers/submission_provider.dart';
 import 'package:green_app/features/admin/views/reward_bottom_sheet.dart';
+import 'package:green_app/features/admin/widgets/search_add_bar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/reward_model.dart';
 import '../viewmodels/admin_reward_viewmodel.dart';
@@ -18,8 +20,9 @@ class AdminRewardsTab extends ConsumerWidget {
         child: Column(
           children: [
             // Thanh Tìm kiếm & Nút Thêm mới
-            _buildTopBar(context, ref),
-
+            CustomSearchAddBar(hintText: 'Tìm phần thưởng...', onSearchChanged: (value) {
+              ref.read(searchQueryProvider.notifier).state = value;
+            }, onAddPressed: () => _showRewardForm(context)),
             // Danh sách Reward
             Expanded(
               child: rewardsAsync.when(
@@ -48,58 +51,6 @@ class AdminRewardsTab extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              onChanged: (value) {
-                ref.read(rewardSearchQueryProvider.notifier).state = value;
-              },
-              decoration: InputDecoration(
-                hintText: 'Tìm phần thưởng...',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primaryGreen),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Nút Thêm Mới
-          InkWell(
-            onTap: () => _showRewardForm(context),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.add, color: Colors.white),
-            ),
-          ),
-        ],
       ),
     );
   }

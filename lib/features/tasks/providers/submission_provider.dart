@@ -102,14 +102,14 @@ class SubmissionService {
         taskTitle: task.title,
         proofUrls: downloadUrls,
         pointsReward: task.pointsReward,
+        userNote: note.trim(),
         createdAt: DateTime.now(),
       );
 
       final data = submission.toMap()
-        ..['userNote'] = note.trim()
         ..['userEmail'] = user.email ?? '';
 
-      await FirebaseFirestore.instance.collection('submissions').add(data);
+      await FirebaseFirestore.instance.collection('submissions').add(submission.toMap());
 
       //Reset ảnh đã chọn
       _ref.read(pickedImagesProvider.notifier).state = [];
