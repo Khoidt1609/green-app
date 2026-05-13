@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../home/views/home_screen.dart';
 import '../tasks/views/task_list_screen.dart';
 import '../leaderboard/views/leaderboard_screen.dart';
@@ -15,16 +16,24 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const LeaderboardScreen(),
-    const TaskListScreen(),
-    const GreenMapScreen(),
-    const RewardWalletScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _screens = [
+      const HomeScreen(),
+      const LeaderboardScreen(),
+      const TaskListScreen(),
+      const GreenMapScreen(),
+      const RewardWalletScreen(),
+    ];
+  }
 
   void _onBottomNavTap(int index) {
     if (_currentIndex == index) return;
+
     setState(() {
       _currentIndex = index;
     });
@@ -53,18 +62,22 @@ class _AppShellState extends State<AppShell> {
           currentIndex: _currentIndex,
           onTap: _onBottomNavTap,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor,
+          backgroundColor:
+              theme.bottomNavigationBarTheme.backgroundColor,
           selectedItemColor: colorScheme.primary,
           unselectedItemColor: Colors.grey.shade400,
+          elevation: 8,
+
           selectedLabelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 11,
           ),
+
           unselectedLabelStyle: const TextStyle(
             fontWeight: FontWeight.w500,
             fontSize: 11,
           ),
-          elevation: 8,
+
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),

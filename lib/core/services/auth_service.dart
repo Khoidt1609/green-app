@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -36,6 +37,27 @@ class AuthService {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
   final GoogleSignIn _googleSignIn;
+
+  // =========================================================
+  // LOCAL SESSION
+  // =========================================================
+
+  static const String _sessionKey = 'logged_in_uid';
+
+  Future<void> saveUserSession(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sessionKey, uid);
+  }
+
+  Future<String?> getSavedUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_sessionKey);
+  }
+
+  Future<void> clearUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_sessionKey);
+  }
 
   User? get currentUser => _auth.currentUser;
 
@@ -116,9 +138,17 @@ class AuthService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      print('AUTH_SERVICE signUp uid=${createdUser.uid} payload=$signUpPayload');
+      print(
+        'AUTH_SERVICE signUp uid=${createdUser.uid} payload=$signUpPayload',
+      );
 
-      await _firestore.collection('users').doc(createdUser.uid).set(signUpPayload);
+      await _firestore
+          .collection('users')
+          .doc(createdUser.uid)
+          .set(signUpPayload);
+
+      // SAVE SESSION
+      await saveUserSession(createdUser.uid);
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on TimeoutException {
@@ -131,7 +161,9 @@ class AuthService {
         } catch (_) {}
       }
 
-      throw AuthException('Tạo tài khoản thành công nhưng lưu dữ liệu thất bại.');
+      throw AuthException(
+        'Tạo tài khoản thành công nhưng lưu dữ liệu thất bại.',
+      );
     }
   }
 
@@ -146,12 +178,16 @@ class AuthService {
     try {
       final resolvedEmail = await _resolveLoginEmail(emailOrUsername);
 
-      await _auth
+      final credential = await _auth
           .signInWithEmailAndPassword(
             email: resolvedEmail,
             password: password,
           )
           .timeout(const Duration(seconds: 30));
+
+      if (credential.user != null) {
+        await saveUserSession(credential.user!.uid);
+      }
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on TimeoutException {
@@ -180,6 +216,8 @@ class AuthService {
 
         await _ensureGoogleUserData(user);
 
+        await saveUserSession(user.uid);
+
         return;
       }
 
@@ -207,6 +245,8 @@ class AuthService {
       }
 
       await _ensureGoogleUserData(user);
+
+      await saveUserSession(user.uid);
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on PlatformException catch (e) {
@@ -245,6 +285,8 @@ class AuthService {
       await _googleSignIn.signOut();
     } catch (_) {}
 
+    await clearUserSession();
+
     await _auth.signOut();
   }
 
@@ -273,6 +315,8 @@ class AuthService {
 
       // delete firestore profile
       await _firestore.collection('users').doc(user.uid).delete();
+
+      await clearUserSession();
 
       // delete auth
       await user.delete();
@@ -348,17 +392,15 @@ class AuthService {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    print('AUTH_SERVICE updateProfile uid=${user.uid} payload=$updatePayload');
+    print(
+      'AUTH_SERVICE updateProfile uid=${user.uid} payload=$updatePayload',
+    );
 
     await _firestore.collection('users').doc(user.uid).set(
       updatePayload,
       SetOptions(merge: true),
     );
   }
-
-  // =========================================================
-  // AVATAR
-  // =========================================================
 
   Future<String> uploadCurrentUserAvatar(String imagePath) async {
     final user = currentUser;
@@ -431,9 +473,7 @@ class AuthService {
       'uid': user.uid,
       'displayName': user.displayName ?? 'Người dùng',
       'username':
-          _buildUsernameFromEmail(user.email) ??
-          user.uid.substring(0, 8),
-
+          '${_buildUsernameFromEmail(user.email) ?? 'user'}_${user.uid.substring(0, 4)}',
       'email': user.email ?? '',
       'avatarUrl': user.photoURL ?? '',
       'provider': 'google',

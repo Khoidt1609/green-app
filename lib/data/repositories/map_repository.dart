@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -10,188 +9,295 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/green_location_model.dart';
 
-// ─── Overpass API endpoint (public, không cần key) ───────────────────────────
-const _kOverpassUrl = 'https://overpass-api.de/api/interpreter';
+// ─────────────────────────────────────────────────────────────
+// OVERPASS API
+// ─────────────────────────────────────────────────────────────
 
-// Bán kính fetch OSM (mét)
+const _kOverpassUrl =
+    'https://overpass-api.de/api/interpreter';
+
+// bán kính 5km
 const _kOsmRadiusMeters = 5000;
 
 class MapRepository {
-  MapRepository(this._firestore) : _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 15),
-  ));
+  MapRepository()
+      : _dio = Dio(
+          BaseOptions(
+            connectTimeout:
+                const Duration(seconds: 12),
+            receiveTimeout:
+                const Duration(seconds: 20),
+          ),
+        );
 
-  final FirebaseFirestore _firestore;
   final Dio _dio;
 
-  // ── Firebase: điểm xanh do admin quản lý ─────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // OPENSTREETMAP
+  // ─────────────────────────────────────────────────────────────
 
-  Future<List<GreenLocation>> getFirebaseLocations() async {
-    final snapshot = await _firestore.collection('green_locations').get();
-    return snapshot.docs.map(GreenLocation.fromDoc).toList();
-  }
-
-  // ── OpenStreetMap Overpass: tự động tìm quanh vị trí ─────────────────────
-  //
-  // Truy vấn các tag OSM phổ biến:
-  //   Trạm sạc EV  → amenity=charging_station
-  //   Điểm tái chế → amenity=recycling
-  //   Trạm sạc VinFast → brand=VinFast + amenity=charging_station
-  //   Trạm sạc khác    → amenity=charging_station
-  //   Điểm tái chế     → amenity=recycling
-  //   Chợ xanh         → amenity=marketplace
-  //
-  // Overpass QL: https://overpass-api.de/api/interpreter
-
-  Future<List<GreenLocation>> getOsmLocations(LatLng center) async {
+  Future<List<GreenLocation>> getOsmLocations(
+    LatLng center,
+  ) async {
     final lat = center.latitude;
     final lon = center.longitude;
-    final r   = _kOsmRadiusMeters;
+    final r = _kOsmRadiusMeters;
 
-    // Overpass QL — ưu tiên VinFast charging, sau đó các loại khác
     final query = '''
-[out:json][timeout:20];
+[out:json][timeout:25];
+
 (
-  node["amenity"="charging_station"]["brand"="VinFast"](around:$r,$lat,$lon);
-  way["amenity"="charging_station"]["brand"="VinFast"](around:$r,$lat,$lon);
-  node["amenity"="charging_station"]["operator"="VinFast"](around:$r,$lat,$lon);
-  way["amenity"="charging_station"]["operator"="VinFast"](around:$r,$lat,$lon);
+  // =========================
+  // TRẠM SẠC ĐIỆN
+  // =========================
   node["amenity"="charging_station"](around:$r,$lat,$lon);
   way["amenity"="charging_station"](around:$r,$lat,$lon);
+
+  node["socket:type2"](around:$r,$lat,$lon);
+  way["socket:type2"](around:$r,$lat,$lon);
+
+  node["socket:ccs"](around:$r,$lat,$lon);
+  way["socket:ccs"](around:$r,$lat,$lon);
+
+  // =========================
+  // TÁI CHẾ
+  // =========================
   node["amenity"="recycling"](around:$r,$lat,$lon);
   way["amenity"="recycling"](around:$r,$lat,$lon);
+
+  node["recycling_type"](around:$r,$lat,$lon);
+  way["recycling_type"](around:$r,$lat,$lon);
+
+  // =========================
+  // CHỢ XANH
+  // =========================
   node["amenity"="marketplace"](around:$r,$lat,$lon);
   way["amenity"="marketplace"](around:$r,$lat,$lon);
+
+  node["shop"="organic"](around:$r,$lat,$lon);
+  way["shop"="organic"](around:$r,$lat,$lon);
+
+  node["organic"="only"](around:$r,$lat,$lon);
+  way["organic"="only"](around:$r,$lat,$lon);
+
+  node["shop"="greengrocer"](around:$r,$lat,$lon);
+  way["shop"="greengrocer"](around:$r,$lat,$lon);
 );
+
 out center tags;
 ''';
 
     try {
       final response = await _dio.post(
         _kOverpassUrl,
-        data: 'data=${Uri.encodeComponent(query)}',
+        data:
+            'data=${Uri.encodeComponent(query)}',
         options: Options(
-          contentType: 'application/x-www-form-urlencoded',
-          headers: {'Accept': 'application/json'},
+          contentType:
+              'application/x-www-form-urlencoded',
+          headers: {
+            'Accept': 'application/json',
+          },
         ),
       );
 
-      if (response.statusCode != 200) return [];
-
-      final data     = response.data is String
-          ? jsonDecode(response.data as String)
-          : response.data;
-      final elements = (data['elements'] as List<dynamic>?) ?? [];
-
-      final result = <GreenLocation>[];
-      for (final el in elements) {
-        final map  = el as Map<String, dynamic>;
-        final tags = map['tags'] as Map<String, dynamic>? ?? {};
-
-        // Skip nếu lat/lon = 0 (dữ liệu lỗi)
-        final loc = _osmElementToLocation(map, tags);
-        if (loc != null) result.add(loc);
+      if (response.statusCode != 200) {
+        return [];
       }
 
-      return result;
+      final data = response.data is String
+          ? jsonDecode(response.data)
+          : response.data;
+
+      final elements =
+          (data['elements']
+                  as List<dynamic>?) ??
+              [];
+
+      final locations = <GreenLocation>[];
+
+      for (final item in elements) {
+        final map =
+            item as Map<String, dynamic>;
+
+        final tags =
+            map['tags']
+                    as Map<String, dynamic>? ??
+                {};
+
+        final loc = _osmElementToLocation(
+          map,
+          tags,
+        );
+
+        if (loc != null) {
+          locations.add(loc);
+        }
+      }
+
+      return locations;
     } on DioException {
-      // Trả về rỗng nếu timeout / network lỗi — không crash app
       return [];
     } catch (_) {
       return [];
     }
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // CONVERT OSM → MODEL
+  // ─────────────────────────────────────────────────────────────
 
   GreenLocation? _osmElementToLocation(
     Map<String, dynamic> element,
     Map<String, dynamic> tags,
   ) {
-    // Xác định type từ tag
     GreenLocationType? type;
-    final amenity = tags['amenity']?.toString() ?? '';
 
-    if (amenity == 'charging_station') {
+    final amenity =
+        tags['amenity']?.toString() ?? '';
+
+    final shop =
+        tags['shop']?.toString() ?? '';
+
+    // =========================
+    // SẠC ĐIỆN
+    // =========================
+
+    if (amenity == 'charging_station' ||
+        tags.containsKey('socket:type2') ||
+        tags.containsKey('socket:ccs')) {
       type = GreenLocationType.charging;
-    } else if (amenity == 'recycling') {
+    }
+
+    // =========================
+    // TÁI CHẾ
+    // =========================
+
+    else if (amenity == 'recycling' ||
+        tags.containsKey('recycling_type')) {
       type = GreenLocationType.recycling;
-    } else if (amenity == 'marketplace') {
+    }
+
+    // =========================
+    // CHỢ XANH
+    // =========================
+
+    else if (amenity == 'marketplace' ||
+        shop == 'organic' ||
+        shop == 'greengrocer' ||
+        tags['organic'] == 'only') {
       type = GreenLocationType.greenMarket;
     }
 
-    if (type == null) return null;
-
-    // Lấy tọa độ
-    double lat = 0, lon = 0;
-    if (element.containsKey('lat') && element.containsKey('lon')) {
-      lat = (element['lat'] as num).toDouble();
-      lon = (element['lon'] as num).toDouble();
-    } else if (element['center'] != null) {
-      final center = element['center'] as Map<String, dynamic>;
-      lat = (center['lat'] as num).toDouble();
-      lon = (center['lon'] as num).toDouble();
+    if (type == null) {
+      return null;
     }
 
-    // Bỏ qua nếu tọa độ không hợp lệ
-    if (lat == 0 && lon == 0) return null;
+    double lat = 0;
+    double lon = 0;
 
-    return GreenLocation.fromOsm(element, type);
-  }
+    // node
 
-  // ── Gộp Firebase + OSM, loại bỏ trùng (theo khoảng cách < 30m) ──────────
+    if (element.containsKey('lat')) {
+      lat =
+          (element['lat'] as num).toDouble();
 
-  Future<List<GreenLocation>> getAllLocations(LatLng? userPos) async {
-    // Firebase luôn fetch
-    final firebaseLocsFuture = getFirebaseLocations();
-
-    // OSM chỉ fetch nếu biết vị trí user
-    final osmLocsFuture = userPos != null
-        ? getOsmLocations(userPos)
-        : Future.value(<GreenLocation>[]);
-
-    final results = await Future.wait([firebaseLocsFuture, osmLocsFuture]);
-    final firebase = results[0];
-    final osm      = results[1];
-
-    // Loại trùng: nếu điểm OSM cách điểm Firebase < 30m thì bỏ OSM
-    final deduped = <GreenLocation>[];
-    const distCalc = Distance();
-
-    for (final osmLoc in osm) {
-      final hasDuplicate = firebase.any((fb) =>
-          distCalc.distance(fb.position, osmLoc.position) < 30);
-      if (!hasDuplicate) deduped.add(osmLoc);
+      lon =
+          (element['lon'] as num).toDouble();
     }
 
-    return [...firebase, ...deduped];
+    // way
+
+    else if (element['center'] != null) {
+      lat = (element['center']['lat']
+              as num)
+          .toDouble();
+
+      lon = (element['center']['lon']
+              as num)
+          .toDouble();
+    }
+
+    // dữ liệu lỗi
+
+    if (lat == 0 && lon == 0) {
+      return null;
+    }
+
+    return GreenLocation.fromOsm(
+      element,
+      type,
+    );
   }
 
-  // ── GPS ──────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // GPS
+  // ─────────────────────────────────────────────────────────────
 
   Future<LatLng?> getCurrentLocation() async {
     try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return null;
-      }
-      if (permission == LocationPermission.deniedForever) return null;
+      bool serviceEnabled =
+          await Geolocator
+              .isLocationServiceEnabled();
 
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      if (!serviceEnabled) {
+        return null;
+      }
+
+      LocationPermission permission =
+          await Geolocator.checkPermission();
+
+      if (permission ==
+          LocationPermission.denied) {
+        permission =
+            await Geolocator.requestPermission();
+
+        if (permission ==
+            LocationPermission.denied) {
+          return null;
+        }
+      }
+
+      if (permission ==
+          LocationPermission.deniedForever) {
+        return null;
+      }
+
+      final pos =
+          await Geolocator.getCurrentPosition(
+        desiredAccuracy:
+            LocationAccuracy.high,
       );
-      return LatLng(pos.latitude, pos.longitude);
+
+      return LatLng(
+        pos.latitude,
+        pos.longitude,
+      );
     } catch (_) {
       return null;
     }
   }
 
-  // ── Khoảng cách (mét) ────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // DISTANCE
+  // ─────────────────────────────────────────────────────────────
 
-  double distanceBetween(LatLng from, LatLng to) =>
-      const Distance().distance(from, to);
+  double distanceBetween(
+    LatLng from,
+    LatLng to,
+  ) {
+    return const Distance().distance(
+      from,
+      to,
+    );
+  }
 }
 
-final mapRepositoryProvider = Provider<MapRepository>(
-  (ref) => MapRepository(FirebaseFirestore.instance),
+// ─────────────────────────────────────────────────────────────
+// PROVIDER
+// ─────────────────────────────────────────────────────────────
+
+final mapRepositoryProvider =
+    Provider<MapRepository>(
+  (ref) => MapRepository(),
 );

@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/reward_model.dart';
-import '../models/transaction_model.dart'; // FIX: dùng TransactionModel thay TransactionRecord
+import '../models/transaction_model.dart';
 
 class RewardRepository {
   final FirebaseFirestore _firestore;
@@ -13,12 +13,21 @@ class RewardRepository {
 
   RewardRepository(this._firestore, this._auth);
 
-  String get _uid => _auth.currentUser!.uid;
+  /// Lấy uid an toàn
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Người dùng chưa đăng nhập. Vui lòng đăng nhập lại.');
+    }
+    return user.uid;
+  }
 
   // ── Rewards list ─────────────────────────────
   Future<List<RewardModel>> getRewards() async {
     final snapshot = await _firestore.collection('rewards').get();
-    return snapshot.docs.map(RewardModel.fromDoc).toList()
+    return snapshot.docs
+        .map(RewardModel.fromDoc)
+        .toList()
       ..sort((a, b) => a.pointCost.compareTo(b.pointCost));
   }
 
@@ -70,7 +79,6 @@ class RewardRepository {
   }
 
   // ── Transaction history ───────────────────────
-  // FIX: trả về List<TransactionModel> thay vì List<TransactionRecord>
   Future<List<TransactionModel>> getTransactions({int limit = 20}) async {
     final snapshot = await _firestore
         .collection('transactions')

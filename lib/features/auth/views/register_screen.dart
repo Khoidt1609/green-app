@@ -1,10 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:green_app/core/providers/auth_providers.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../router/app_router.dart';
 import '../viewmodels/auth_view_model.dart';
 import '../../../core/services/vietnam_geography_api.dart';
+
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -23,12 +26,6 @@ class _RegisterScreenState
   final _usernameController =
       TextEditingController();
 
-  final _cityController =
-      TextEditingController();
-
-  final _districtController =
-      TextEditingController();
-
   final _emailController =
       TextEditingController();
 
@@ -37,47 +34,86 @@ class _RegisterScreenState
 
   final _confirmPasswordController =
       TextEditingController();
+
+  final VietnamGeographyApi _geographyApi =
+      VietnamGeographyApi();
+
   List<dynamic> _provinces = [];
   List<dynamic> _districts = [];
+
   String? _selectedProvince;
   String? _selectedDistrict;
-  final VietnamGeographyApi _geographyApi =VietnamGeographyApi();
-
-
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
   @override
   void initState() {
     super.initState();
     _loadProvinces();
   }
-  Future<void>_loadProvinces() async {
+
+  @override
+  void deactivate() {
+    FocusScope.of(context).unfocus();
+    super.deactivate();
+  }
+
+  Future<void> _loadProvinces() async {
     try {
-      final provinces = await _geographyApi.fetchProvinces();
+      final provinces =
+          await _geographyApi.getProvinces();
+
+      if (!mounted) return;
+
       setState(() {
         _provinces = provinces;
       });
     } catch (e) {
-      // Handle error, e.g. show a snackbar
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không tải được tỉnh/thành phố: $e',
+          ),
+        ),
+      );
     }
   }
-  Future<void> _loadDistricts(String provinceCode) async {
+
+  Future<void> _loadDistricts(
+    String provinceName,
+  ) async {
     try {
-      final districts = await _geographyApi.fetchDistricts(provinceCode);
+      final districts =
+          await _geographyApi.getDistricts(
+        provinceName,
+      );
+
+      if (!mounted) return;
+
       setState(() {
         _districts = districts;
+        _selectedDistrict = null;
       });
-    } catch (e) {
-      // Handle error, e.g. show a snackbar
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Không tải được quận/huyện',
+          ),
+        ),
+      );
     }
   }
+
   @override
   void dispose() {
     _displayNameController.dispose();
     _usernameController.dispose();
-    _cityController.dispose();
-    _districtController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -86,22 +122,19 @@ class _RegisterScreenState
   }
 
   Future<void> _onRegisterPressed() async {
+    final isLoading = ref.read(
+      authViewModelProvider.select(
+        (state) => state.isLoading,
+      ),
+    );
+
+    if (isLoading) return;
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     FocusScope.of(context).unfocus();
-
-    // Lấy tên province từ code
-    String provinceName = '';
-    try {
-      final provinceObj = _provinces.firstWhere(
-        (p) => p['code'].toString() == _selectedProvince,
-      );
-      provinceName = provinceObj['name'] ?? _selectedProvince ?? '';
-    } catch (e) {
-      provinceName = _selectedProvince ?? '';
-    }
 
     final error = await ref
         .read(authViewModelProvider.notifier)
@@ -113,34 +146,43 @@ class _RegisterScreenState
               _displayNameController.text.trim(),
           username:
               _usernameController.text.trim(),
-          city: provinceName,
-          district:
-              _selectedDistrict!,
+          city: _selectedProvince ?? '',
+          district: _selectedDistrict ?? '',
         );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.redAccent,
+        ),
       );
+
       return;
+    }
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await ref
+          .read(authServiceProvider)
+          .saveUserSession(user.uid);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          'Đăng ký thành công.',
-        ),
+        content: Text('Đăng ký thành công'),
+        backgroundColor:
+            AppColors.primaryGreen,
       ),
     );
 
-    Navigator.of(
+    Navigator.pushNamedAndRemoveUntil(
       context,
-    ).pushNamedAndRemoveUntil(
-      AppRouter.login,
+      AppRouter.home,
       (route) => false,
     );
   }
@@ -152,28 +194,35 @@ class _RegisterScreenState
         .read(authViewModelProvider.notifier)
         .loginWithGoogle();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
       );
+
       return;
+    }
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await ref
+          .read(authServiceProvider)
+          .saveUserSession(user.uid);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Đăng nhập Google thành công.',
+          'Đăng nhập Google thành công',
         ),
       ),
     );
 
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil(
       AppRouter.home,
       (route) => false,
     );
@@ -202,25 +251,27 @@ class _RegisterScreenState
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding:
+                  const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Container(
-                  constraints: const BoxConstraints(
+                  constraints:
+                      const BoxConstraints(
                     maxWidth: 440,
                   ),
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    16,
-                    20,
-                    16,
-                  ),
+                  padding:
+                      const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color:
+                        AppColors.surfaceLight,
                     borderRadius:
-                        BorderRadius.circular(24),
+                        BorderRadius.circular(
+                      24,
+                    ),
                     border: Border.all(
-                      color: AppColors.borderLight,
+                      color:
+                          AppColors.borderLight,
                     ),
                     boxShadow: const [
                       BoxShadow(
@@ -232,19 +283,22 @@ class _RegisterScreenState
                   ),
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
+                        CrossAxisAlignment
+                            .stretch,
                     children: [
                       Align(
                         alignment:
                             Alignment.centerLeft,
-                        child: TextButton.icon(
+                        child:
+                            TextButton.icon(
                           onPressed: isLoading
                               ? null
                               : () {
                                   Navigator.of(
                                     context,
                                   ).pushReplacementNamed(
-                                    AppRouter.login,
+                                    AppRouter
+                                        .login,
                                   );
                                 },
                           icon: const Icon(
@@ -252,7 +306,9 @@ class _RegisterScreenState
                             size: 16,
                           ),
                           label:
-                              const Text('Quay lại'),
+                              const Text(
+                            'Quay lại',
+                          ),
                         ),
                       ),
 
@@ -260,9 +316,11 @@ class _RegisterScreenState
                         child: Container(
                           height: 74,
                           width: 74,
-                          decoration: BoxDecoration(
+                          decoration:
+                              BoxDecoration(
                             borderRadius:
-                                BorderRadius.circular(
+                                BorderRadius
+                                    .circular(
                               18,
                             ),
                             gradient:
@@ -274,44 +332,36 @@ class _RegisterScreenState
                                     .primaryDarkGreen,
                               ],
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors
-                                    .primaryGreen
-                                    .withOpacity(0.35),
-                                blurRadius: 20,
-                                offset:
-                                    const Offset(
-                                  0,
-                                  8,
-                                ),
-                              ),
-                            ],
                           ),
                           child: const Icon(
                             Icons.eco_outlined,
-                            color: Colors.white,
+                            color:
+                                Colors.white,
                             size: 35,
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(
+                        height: 16,
+                      ),
 
                       const Text(
                         'Tạo tài khoản',
                         textAlign:
                             TextAlign.center,
                         style: TextStyle(
-                          color:
-                              AppColors.textPrimary,
+                          color: AppColors
+                              .textPrimary,
                           fontWeight:
                               FontWeight.w800,
-                          fontSize: 36,
+                          fontSize: 34,
                         ),
                       ),
 
-                      const SizedBox(height: 6),
+                      const SizedBox(
+                        height: 6,
+                      ),
 
                       const Text(
                         'Tham gia cộng đồng xanh',
@@ -320,30 +370,27 @@ class _RegisterScreenState
                         style: TextStyle(
                           color: AppColors
                               .textSecondary,
-                          fontSize: 16,
+                          fontSize: 15,
                         ),
                       ),
 
-                      const SizedBox(height: 18),
-
-                      const Text(
-                        'Họ và tên',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(
+                        height: 20,
                       ),
-
-                      const SizedBox(height: 6),
 
                       _RegisterField(
                         controller:
                             _displayNameController,
-                        hint: 'Nguyễn Văn A',
+                        hint:
+                            'Họ và tên',
                         prefixIcon:
                             Icons.person_outline,
-                        validator: (value) {
+                        autofillHints:
+                            const [
+                          AutofillHints.name,
+                        ],
+                        validator:
+                            (value) {
                           if (value == null ||
                               value
                                   .trim()
@@ -355,79 +402,57 @@ class _RegisterScreenState
                         },
                       ),
 
-                      const SizedBox(height: 12),
-
-                      const Text(
-                        'Tên đăng nhập',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(
+                        height: 12,
                       ),
-
-                      const SizedBox(height: 6),
 
                       _RegisterField(
                         controller:
                             _usernameController,
-                        hint: 'minhnguyen',
+                        hint:
+                            'Tên đăng nhập',
                         prefixIcon: Icons
                             .alternate_email_outlined,
-                        validator: (value) {
+                        validator:
+                            (value) {
                           if (value == null ||
                               value
                                   .trim()
                                   .isEmpty) {
-                            return 'Vui lòng nhập tên đăng nhập';
+                            return 'Vui lòng nhập username';
                           }
 
-                          final username =
-                              value.trim();
-
-                          if (username.length <
+                          if (value
+                                  .trim()
+                                  .length <
                               3) {
-                            return 'Tên đăng nhập tối thiểu 3 ký tự';
-                          }
-
-                          final regex = RegExp(
-                            r'^[a-zA-Z0-9_.]+$',
-                          );
-
-                          if (!regex.hasMatch(
-                            username,
-                          )) {
-                            return 'Chỉ gồm chữ, số, dấu gạch dưới hoặc chấm';
+                            return 'Ít nhất 3 ký tự';
                           }
 
                           return null;
                         },
                       ),
 
-                      const SizedBox(height: 12),
-
-                      const Text(
-                        'Email',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(
+                        height: 12,
                       ),
-
-                      const SizedBox(height: 6),
 
                       _RegisterField(
                         controller:
                             _emailController,
                         hint:
-                            'email@example.com',
+                            'Email',
                         prefixIcon:
                             Icons.email_outlined,
                         keyboardType:
                             TextInputType
                                 .emailAddress,
-                        validator: (value) {
+                        autofillHints:
+                            const [
+                          AutofillHints.email,
+                        ],
+                        validator:
+                            (value) {
                           if (value == null ||
                               value
                                   .trim()
@@ -435,12 +460,12 @@ class _RegisterScreenState
                             return 'Vui lòng nhập email';
                           }
 
-                          final emailRegex =
+                          final regex =
                               RegExp(
                             r'^[^@]+@[^@]+\.[^@]+',
                           );
 
-                          if (!emailRegex
+                          if (!regex
                               .hasMatch(
                             value.trim(),
                           )) {
@@ -451,27 +476,24 @@ class _RegisterScreenState
                         },
                       ),
 
-                      const SizedBox(height: 12),
-
-                      const Text(
-                        'Mật khẩu',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(
+                        height: 12,
                       ),
-
-                      const SizedBox(height: 6),
 
                       _RegisterField(
                         controller:
                             _passwordController,
-                        hint: '••••••••',
+                        hint:
+                            'Mật khẩu',
                         prefixIcon:
                             Icons.lock_outline,
                         obscureText:
                             _obscurePassword,
+                        autofillHints:
+                            const [
+                          AutofillHints
+                              .newPassword,
+                        ],
                         suffixIcon:
                             IconButton(
                           onPressed: () {
@@ -483,46 +505,39 @@ class _RegisterScreenState
                           icon: Icon(
                             _obscurePassword
                                 ? Icons
-                                      .visibility_outlined
+                                    .visibility_outlined
                                 : Icons
-                                      .visibility_off_outlined,
-                            color: AppColors
-                                .primaryGreen
-                                .withOpacity(0.75),
+                                    .visibility_off_outlined,
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null ||
-                              value.isEmpty) {
-                            return 'Vui lòng nhập mật khẩu';
+                        validator:
+                            (value) {
+                          if (value ==
+                                  null ||
+                              value
+                                  .isEmpty) {
+                            return 'Nhập mật khẩu';
                           }
 
-                          if (value.length <
+                          if (value
+                                  .length <
                               6) {
-                            return 'Mật khẩu tối thiểu 6 ký tự';
+                            return 'Ít nhất 6 ký tự';
                           }
 
                           return null;
                         },
                       ),
 
-                      const SizedBox(height: 12),
-
-                      const Text(
-                        'Xác nhận mật khẩu',
-                        style: TextStyle(
-                          color: AppColors
-                              .textSecondary,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(
+                        height: 12,
                       ),
-
-                      const SizedBox(height: 6),
 
                       _RegisterField(
                         controller:
                             _confirmPasswordController,
-                        hint: '••••••••',
+                        hint:
+                            'Xác nhận mật khẩu',
                         prefixIcon: Icons
                             .verified_user_outlined,
                         obscureText:
@@ -538,18 +553,18 @@ class _RegisterScreenState
                           icon: Icon(
                             _obscureConfirmPassword
                                 ? Icons
-                                      .visibility_outlined
+                                    .visibility_outlined
                                 : Icons
-                                      .visibility_off_outlined,
-                            color: AppColors
-                                .primaryGreen
-                                .withOpacity(0.75),
+                                    .visibility_off_outlined,
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null ||
-                              value.isEmpty) {
-                            return 'Vui lòng xác nhận mật khẩu';
+                        validator:
+                            (value) {
+                          if (value ==
+                                  null ||
+                              value
+                                  .isEmpty) {
+                            return 'Xác nhận mật khẩu';
                           }
 
                           if (value !=
@@ -562,115 +577,209 @@ class _RegisterScreenState
                         },
                       ),
 
-                      const SizedBox(height: 12),
-
-
-                      DropdownButtonFormField<String>(
-                        value: _selectedProvince,
-                        items: _provinces.map<DropdownMenuItem<String>>((province) {
-                          return DropdownMenuItem<String>(
-                            value: province['code'].toString(),
-                            child: Text(province['name']),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedProvince = value;
-                            _selectedDistrict = null;
-                            _districts = [];
-                          });
-                          if (value != null) {
-                            _loadDistricts(value);
-                          }
-                        },
-                        decoration: const InputDecoration(
-                          labelText: 'Thành phố',
-                          prefixIcon: Icon(Icons.location_city),
-                        ),
-                        validator: (value) => value == null ? 'Vui lòng chọn thành phố' : null,
+                      const SizedBox(
+                        height: 12,
                       ),
 
-                      const SizedBox(height: 12),
-
-
-                      DropdownButtonFormField<String>(
-                        value: _selectedDistrict,
-                        items: _districts.map<DropdownMenuItem<String>>((district) {
-                          return DropdownMenuItem<String>(
-                            value: district['name'],
-                            child: Text(district['name']),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedDistrict = value;
-                          });
-                        },
-                        decoration: const InputDecoration(
-                          labelText: 'Quận / Huyện',
-                          prefixIcon: Icon(Icons.map_outlined),
-                        ),
-                        validator: (value) => value == null ? 'Vui lòng chọn quận/huyện' : null,
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(
-                            14,
-                          ),
-                          gradient:
-                              const LinearGradient(
-                            colors: [
-                              AppColors
-                                  .primaryGreen,
-                              AppColors
-                                  .primaryDarkGreen,
-                            ],
-                          ),
-                        ),
-                        child: FilledButton(
-                          style:
-                              FilledButton.styleFrom(
-                            backgroundColor:
-                                Colors.transparent,
-                            shadowColor:
-                                Colors.transparent,
-                            padding:
-                                const EdgeInsets.symmetric(
-                              vertical: 15,
+                      if (_provinces.isEmpty)
+                        const Center(
+                          child:
+                              CircularProgressIndicator(),
+                        )
+                      else
+                        DropdownButtonFormField<
+                            String>(
+                          value:
+                              _selectedProvince,
+                          isExpanded: true,
+                          decoration:
+                              InputDecoration(
+                            labelText:
+                                'Tỉnh / Thành phố',
+                            prefixIcon:
+                                const Icon(
+                              Icons
+                                  .location_city,
+                            ),
+                            border:
+                                OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(
+                                14,
+                              ),
                             ),
                           ),
-                          onPressed: isLoading
-                              ? null
-                              : _onRegisterPressed,
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child:
-                                      CircularProgressIndicator(
-                                    strokeWidth:
-                                        2,
-                                    color: Colors
-                                        .white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Tạo tài khoản',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight:
-                                        FontWeight
-                                            .w700,
-                                  ),
-                                ),
+                          items: _provinces.map<
+                                  DropdownMenuItem<
+                                      String>>(
+                              (
+                            dynamic province,
+                          ) {
+                            final name =
+                                (province?['name'] ??
+                                        'Không xác định')
+                                    .toString();
+
+                            return DropdownMenuItem<
+                                String>(
+                              value: name,
+                              child:
+                                  Text(name),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedProvince =
+                                  value;
+
+                              _selectedDistrict =
+                                  null;
+
+                              _districts = [];
+                            });
+
+                            if (value !=
+                                null) {
+                              _loadDistricts(
+                                value,
+                              );
+                            }
+                          },
+                          validator:
+                              (value) {
+                            if (value ==
+                                    null ||
+                                value
+                                    .isEmpty) {
+                              return 'Chọn tỉnh/thành';
+                            }
+
+                            return null;
+                          },
                         ),
+
+                      const SizedBox(
+                        height: 12,
                       ),
 
-                      const SizedBox(height: 14),
+                      if (_selectedProvince !=
+                              null &&
+                          _districts.isEmpty)
+                        const Padding(
+                          padding:
+                              EdgeInsets.symmetric(
+                            vertical: 10,
+                          ),
+                          child: Center(
+                            child:
+                                CircularProgressIndicator(),
+                          ),
+                        )
+                      else
+                        DropdownButtonFormField<
+                            String>(
+                          value:
+                              _selectedDistrict,
+                          isExpanded: true,
+                          decoration:
+                              InputDecoration(
+                            labelText:
+                                'Quận / Huyện',
+                            prefixIcon:
+                                const Icon(
+                              Icons
+                                  .map_outlined,
+                            ),
+                            border:
+                                OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(
+                                14,
+                              ),
+                            ),
+                          ),
+                          items: _districts.map<
+                                  DropdownMenuItem<
+                                      String>>(
+                              (
+                            dynamic district,
+                          ) {
+                            final name =
+                                (district?['name'] ??
+                                        'Không xác định')
+                                    .toString();
+
+                            return DropdownMenuItem<
+                                String>(
+                              value: name,
+                              child:
+                                  Text(name),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedDistrict =
+                                  value;
+                            });
+                          },
+                          validator:
+                              (value) {
+                            if (value ==
+                                    null ||
+                                value
+                                    .isEmpty) {
+                              return 'Chọn quận/huyện';
+                            }
+
+                            return null;
+                          },
+                        ),
+
+                      const SizedBox(
+                        height: 18,
+                      ),
+
+                      FilledButton(
+                        onPressed: isLoading
+                            ? null
+                            : _onRegisterPressed,
+                        style:
+                            FilledButton.styleFrom(
+                          backgroundColor:
+                              AppColors
+                                  .primaryGreen,
+                          padding:
+                              const EdgeInsets.symmetric(
+                            vertical: 15,
+                          ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child:
+                                    CircularProgressIndicator(
+                                  strokeWidth:
+                                      2,
+                                  color: Colors
+                                      .white,
+                                ),
+                              )
+                            : const Text(
+                                'Tạo tài khoản',
+                                style:
+                                    TextStyle(
+                                  fontSize: 18,
+                                  fontWeight:
+                                      FontWeight
+                                          .w700,
+                                ),
+                              ),
+                      ),
+
+                      const SizedBox(
+                        height: 14,
+                      ),
 
                       Row(
                         children: [
@@ -687,10 +796,6 @@ class _RegisterScreenState
                             ),
                             child: Text(
                               'hoặc',
-                              style: TextStyle(
-                                color: AppColors
-                                    .textSecondary,
-                              ),
                             ),
                           ),
                           Expanded(
@@ -702,41 +807,33 @@ class _RegisterScreenState
                         ],
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(
+                        height: 14,
+                      ),
 
                       OutlinedButton.icon(
                         onPressed: isLoading
                             ? null
                             : _onGooglePressed,
+                        icon: const Icon(
+                          Icons
+                              .g_mobiledata_rounded,
+                        ),
+                        label: const Text(
+                          'Tiếp tục với Google',
+                        ),
                         style:
                             OutlinedButton.styleFrom(
                           padding:
                               const EdgeInsets.symmetric(
                             vertical: 14,
                           ),
-                          side: BorderSide(
-                            color: AppColors
-                                .primaryGreen
-                                .withOpacity(0.35),
-                          ),
-                          foregroundColor:
-                              AppColors
-                                  .primaryDarkGreen,
-                        ),
-                        icon: const Icon(
-                          Icons.g_mobiledata_rounded,
-                        ),
-                        label: const Text(
-                          'Tiếp tục với Google',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight:
-                                FontWeight.w600,
-                          ),
                         ),
                       ),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(
+                        height: 12,
+                      ),
 
                       Row(
                         mainAxisAlignment:
@@ -744,25 +841,23 @@ class _RegisterScreenState
                                 .center,
                         children: [
                           const Text(
-                            'Đã có tài khoản? ',
-                            style: TextStyle(
-                              color: AppColors
-                                  .textSecondary,
-                            ),
+                            'Đã có tài khoản?',
                           ),
                           TextButton(
-                            onPressed: isLoading
-                                ? null
-                                : () {
-                                    Navigator.of(
-                                      context,
-                                    ).pushReplacementNamed(
-                                      AppRouter
-                                          .login,
-                                    );
-                                  },
-                            child: const Text(
-                              'Đăng nhập ngay',
+                            onPressed:
+                                isLoading
+                                    ? null
+                                    : () {
+                                        Navigator.of(
+                                          context,
+                                        ).pushReplacementNamed(
+                                          AppRouter
+                                              .login,
+                                        );
+                                      },
+                            child:
+                                const Text(
+                              'Đăng nhập',
                             ),
                           ),
                         ],
@@ -788,6 +883,7 @@ class _RegisterField extends StatelessWidget {
     this.obscureText = false,
     this.validator,
     this.suffixIcon,
+    this.autofillHints,
   });
 
   final TextEditingController controller;
@@ -797,6 +893,7 @@ class _RegisterField extends StatelessWidget {
   final bool obscureText;
   final FormFieldValidator<String>? validator;
   final Widget? suffixIcon;
+  final List<String>? autofillHints;
 
   @override
   Widget build(BuildContext context) {
@@ -805,43 +902,16 @@ class _RegisterField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(
-        color: AppColors.textPrimary,
-      ),
+      autofillHints: autofillHints,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-          color: AppColors.textSecondary,
-        ),
         prefixIcon: Icon(
           prefixIcon,
-          color: AppColors.primaryGreen
-              .withOpacity(0.75),
         ),
         suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: AppColors.surfaceLight,
         border: OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.borderLight,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.borderLight,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.primaryGreen,
-            width: 1.4,
-          ),
         ),
       ),
     );

@@ -1,8 +1,13 @@
+// lib/features/auth/views/login_screen.dart
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_colors.dart';
-import '../../../router/app_router.dart';
+import 'package:green_app/core/constants/app_colors.dart';
+import 'package:green_app/core/providers/auth_providers.dart';
+import 'package:green_app/router/app_router.dart';
+
 import '../viewmodels/auth_view_model.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -27,6 +32,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  // =========================================================
+  // LOGIN
+  // =========================================================
+
   Future<void> _onLoginPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -41,32 +50,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text.trim(),
         );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
 
+    // SAVE SESSION
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await ref
+          .read(authServiceProvider)
+          .saveUserSession(user.uid);
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          'Đăng nhập thành công. Chào mừng đến GreenStep!',
-        ),
+        content: Text('Đăng nhập thành công!'),
+        backgroundColor: AppColors.primaryGreen,
       ),
     );
 
-    Navigator.of(
+    Navigator.pushNamedAndRemoveUntil(
       context,
-    ).pushNamedAndRemoveUntil(
       AppRouter.home,
       (route) => false,
     );
   }
+
+  // =========================================================
+  // GOOGLE LOGIN
+  // =========================================================
 
   Future<void> _onGooglePressed() async {
     FocusScope.of(context).unfocus();
@@ -75,9 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         .read(authViewModelProvider.notifier)
         .loginWithGoogle();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,21 +105,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await ref
+          .read(authServiceProvider)
+          .saveUserSession(user.uid);
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          'Đăng nhập Google thành công.',
-        ),
+        content: Text('Đăng nhập Google thành công.'),
+        backgroundColor: AppColors.primaryGreen,
       ),
     );
 
-    Navigator.of(
+    Navigator.pushNamedAndRemoveUntil(
       context,
-    ).pushNamedAndRemoveUntil(
       AppRouter.home,
       (route) => false,
     );
   }
+
+  // =========================================================
+  // FORGOT PASSWORD
+  // =========================================================
 
   Future<void> _onForgotPasswordPressed() async {
     final emailOrUsername = _emailController.text.trim();
@@ -124,9 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           emailOrUsername: emailOrUsername,
         );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -143,6 +170,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -198,6 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     crossAxisAlignment:
                         CrossAxisAlignment.stretch,
                     children: [
+                      // LOGO
                       Center(
                         child: Container(
                           height: 74,
@@ -351,9 +383,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: Icon(
                             _obscurePassword
                                 ? Icons
-                                      .visibility_outlined
+                                    .visibility_outlined
                                 : Icons
-                                      .visibility_off_outlined,
+                                    .visibility_off_outlined,
                             color: AppColors
                                 .primaryGreen
                                 .withOpacity(0.75),
@@ -390,6 +422,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       const SizedBox(height: 10),
 
+                      // LOGIN BUTTON
                       DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius:
@@ -472,6 +505,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       const SizedBox(height: 14),
 
+                      // GOOGLE BUTTON
                       OutlinedButton.icon(
                         onPressed: isLoading
                             ? null
@@ -545,6 +579,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+
+// =========================================================
+// FIELD
+// =========================================================
 
 class _AuthField extends StatelessWidget {
   const _AuthField({

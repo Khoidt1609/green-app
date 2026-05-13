@@ -3,7 +3,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:green_app/core/services/vietnam_geography_api.dart';
+import '../../../core/services/vietnam_geography_api.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/leaderboard_model.dart';
 import '../viewmodels/leaderboard_viewmodel.dart';
@@ -507,6 +507,7 @@ class _FilterSheetState
   String search = '';
 
   String? selectedProvinceCode;
+  String? selectedDistrictCode;
 
   @override
   void initState() {
@@ -516,38 +517,33 @@ class _FilterSheetState
 
   Future<void> _loadProvinces() async {
     try {
-      final data =
-          await _api.fetchProvinces();
+      final data = await _api.getProvinces();
 
+      if (!mounted) return;
       setState(() {
         provinces = data;
         isLoading = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  Future<void> _loadDistricts(
-    String provinceCode,
-  ) async {
+  Future<void> _loadDistricts(String province) async {
     setState(() {
       districts = [];
-      selectedProvinceCode =
-          provinceCode;
-      
+      selectedProvinceCode = province;
+      selectedDistrictCode = null;
       search = '';
-
     });
 
     try {
-      final data =
-          await _api.fetchDistricts(
-        provinceCode,
-      );
+      final data = await _api.getDistricts(province);
 
+      if (!mounted) return;
       setState(() {
         districts = data;
       });
@@ -557,34 +553,26 @@ class _FilterSheetState
   @override
   Widget build(BuildContext context) {
     final isCity =
-        widget.state.scope ==
-            LeaderboardScope.city;
+        widget.state.scope == LeaderboardScope.city;
 
     final items = isCity
         ? provinces
             .where((e) {
-              final name =
-                  (e['name'] ?? '')
-                      .toString()
-                      .toLowerCase();
-
-              return name.contains(
-                search.toLowerCase(),
-              );
+              final name = (e['name'] ?? '').toString().toLowerCase();
+              return name.contains(search.toLowerCase().trim());
             })
             .toList()
-        : districts
-            .where((e) {
-              final name =
-                  (e['name'] ?? '')
-                      .toString()
-                      .toLowerCase();
-
-              return name.contains(
-                search.toLowerCase(),
-              );
-            })
-            .toList();
+        : selectedDistrictCode != null
+            ? districts
+                .where((e) =>
+                    e['code'].toString() == selectedDistrictCode)
+                .toList()
+            : districts
+                .where((e) {
+                  final name = (e['name'] ?? '').toString().toLowerCase();
+                  return name.contains(search.toLowerCase().trim());
+                })
+                .toList();
 
     return Container(
       height:
@@ -708,207 +696,186 @@ class _FilterSheetState
           const SizedBox(height: 16),
 
           if (!isCity)
-  Padding(
-    padding:
-        const EdgeInsets.symmetric(
-      horizontal: 20,
-    ),
-
-    child: Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-
-      children: [
-        const Text(
-          'Tỉnh / Thành phố',
-
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        Container(
-          padding:
-              const EdgeInsets.symmetric(
-            horizontal: 14,
-          ),
-
-          decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest,
-
-            borderRadius:
-                BorderRadius.circular(
-              14,
-            ),
-          ),
-
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-
-              value:
-                  selectedProvinceCode,
-
-              hint: const Text(
-                'Chọn tỉnh/thành',
-              ),
-
-              items: provinces.map((e) {
-                return DropdownMenuItem<
-                    String>(
-                  value:
-                      e['code'].toString(),
-
-                  child: Text(
-                    e['name'],
-                    overflow:
-                        TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tỉnh / Thành phố',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                );
-              }).toList(),
-
-              onChanged: (value) {
-                if (value == null) return;
-
-                _loadDistricts(value);
-              },
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedProvinceCode,
+                        hint: const Text('Chọn tỉnh/thành'),
+                        items: provinces.map((e) {
+                          return DropdownMenuItem<String>(
+                            value: e['code'].toString(),
+                            child: Text(
+                              e['name'],
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          _loadDistricts(value);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                ],
+              ),
             ),
-          ),
-        ),
 
-        const SizedBox(height: 18),
-      ],
-    ),
-  ),
+          if (!isCity && selectedProvinceCode != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Quận / Huyện',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedDistrictCode,
+                        hint: const Text('Chọn quận/huyện'),
+                        items: districts.map((e) {
+                          return DropdownMenuItem<String>(
+                            value: e['code'].toString(),
+                            child: Text(
+                              e['name'],
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            selectedDistrictCode = value;
+                            search = '';
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                ],
+              ),
+            ),
 
           Expanded(
             child: isLoading
                 ? const Center(
-                    child:
-                        CircularProgressIndicator(
-                      color:
-                          AppColors.primaryGreen,
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryGreen,
                     ),
                   )
-                : ListView.separated(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
-
-                    itemBuilder:
-                        (_, index) {
-                      final item =
-                          items[index];
-
-                      final name =
-                          item['name'];
-
-                      final selected =
-                          widget.state
-                                  .selectedFilter ==
-                              name;
-
-                      return InkWell(
-                        borderRadius:
-                            BorderRadius.circular(
-                          16,
+                : items.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Không có dữ liệu để lọc',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                      )
+                    : ListView.separated(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 20,
+                        ),
+                        itemBuilder: (_, index) {
+                          final item = items[index] as Map<String, dynamic>;
+                          final name = (item['name'] ?? '').toString();
+                          final selected =
+                              widget.state.selectedFilter == name;
 
-                        onTap: () async {
-                          Navigator.pop(
-                            context,
-                          );
-
-                          await widget.vm
-                              .setFilter(
-                            name,
-                          );
-                        },
-
-                        child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 15,
-                          ),
-
-                          decoration:
-                              BoxDecoration(
-                            color: selected
-                                ? AppColors
-                                    .primaryGreen
-                                    .withValues(
-                                      alpha:
-                                          0.1,
-                                    )
-                                : Colors
-                                    .transparent,
-
+                          return InkWell(
                             borderRadius:
-                                BorderRadius.circular(
-                              16,
-                            ),
-
-                            border:
-                                Border.all(
-                              color: selected
-                                  ? AppColors
-                                      .primaryGreen
-                                  : Theme.of(
-                                          context)
-                                      .dividerColor,
-                            ),
-                          ),
-
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  name,
-
-                                  style:
-                                      TextStyle(
-                                    fontWeight:
-                                        FontWeight
-                                            .w700,
-
-                                    color: selected
-                                        ? AppColors
-                                            .primaryGreen
-                                        : null,
-                                  ),
+                                BorderRadius.circular(16),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              await widget.vm.setFilter(name);
+                            },
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 15,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? AppColors.primaryGreen
+                                        .withValues(alpha: 0.1)
+                                    : Colors.transparent,
+                                borderRadius:
+                                    BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? AppColors.primaryGreen
+                                      : Theme.of(context)
+                                          .dividerColor,
                                 ),
                               ),
-
-                              if (selected)
-                                const Icon(
-                                  Icons
-                                      .check_circle_rounded,
-
-                                  color: AppColors
-                                      .primaryGreen,
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-
-                    separatorBuilder:
-                        (_, __) =>
-                            const SizedBox(
-                      height: 10,
-                    ),
-
-                    itemCount: items.length,
-                  ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      style: TextStyle(
+                                        fontWeight:
+                                            FontWeight.w700,
+                                        color: selected
+                                            ? AppColors.primaryGreen
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  if (selected)
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      color:
+                                          AppColors.primaryGreen,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 10),
+                        itemCount: items.length,
+                      ),
           ),
 
           const SizedBox(height: 20),
