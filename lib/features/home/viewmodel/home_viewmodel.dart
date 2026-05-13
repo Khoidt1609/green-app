@@ -58,61 +58,45 @@ class HomeState {
     String? avatarUrl,
   }) {
     return HomeState(
-      isLoadingProfile:
-          isLoadingProfile ?? this.isLoadingProfile,
+      isLoadingProfile: isLoadingProfile ?? this.isLoadingProfile,
 
-      isLoadingTasks:
-          isLoadingTasks ?? this.isLoadingTasks,
+      isLoadingTasks: isLoadingTasks ?? this.isLoadingTasks,
 
       error: clearError ? null : error ?? this.error,
 
       displayName: displayName ?? this.displayName,
 
-      avatarInitial:
-          avatarInitial ?? this.avatarInitial,
+      avatarInitial: avatarInitial ?? this.avatarInitial,
       avatarUrl: avatarUrl ?? this.avatarUrl,
 
       totalPoints: totalPoints ?? this.totalPoints,
 
-      currentPoints:
-          currentPoints ?? this.currentPoints,
+      currentPoints: currentPoints ?? this.currentPoints,
 
       weekPoints: weekPoints ?? this.weekPoints,
 
-      monthPoints:
-          monthPoints ?? this.monthPoints,
+      monthPoints: monthPoints ?? this.monthPoints,
 
       streakDays: streakDays ?? this.streakDays,
 
-      cityRank: clearCityRank
-          ? null
-          : cityRank ?? this.cityRank,
+      cityRank: clearCityRank ? null : cityRank ?? this.cityRank,
 
-      recentTasks:
-          recentTasks ?? this.recentTasks,
+      recentTasks: recentTasks ?? this.recentTasks,
 
-      recentAchievements:
-          recentAchievements ??
-              this.recentAchievements,
+      recentAchievements: recentAchievements ?? this.recentAchievements,
     );
   }
 
   int get tasksDoneCount =>
-      recentTasks.where(
-        (t) => (t['done'] as bool?) == true,
-      ).length;
+      recentTasks.where((t) => (t['done'] as bool?) == true).length;
 
   int get level => (totalPoints ~/ 1000) + 1;
 
-  double get levelProgress =>
-      ((totalPoints % 1000) / 1000)
-          .clamp(0.0, 1.0);
+  double get levelProgress => ((totalPoints % 1000) / 1000).clamp(0.0, 1.0);
 
-  double get weekProgress =>
-      (weekPoints / 600).clamp(0.0, 1.0);
+  double get weekProgress => (weekPoints / 600).clamp(0.0, 1.0);
 
-  double get monthProgress =>
-      (monthPoints / 2000).clamp(0.0, 1.0);
+  double get monthProgress => (monthPoints / 2000).clamp(0.0, 1.0);
 }
 
 class HomeViewModel extends StateNotifier<HomeState> {
@@ -120,19 +104,14 @@ class HomeViewModel extends StateNotifier<HomeState> {
     _init();
   }
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   User? get _currentUser => _auth.currentUser;
 
   Future<void> _init() async {
-    await Future.wait([
-      _loadProfile(),
-      _loadRecentTasks(),
-    ]);
+    await Future.wait([_loadProfile(), _loadRecentTasks()]);
   }
 
   // =========================================================
@@ -143,52 +122,40 @@ class HomeViewModel extends StateNotifier<HomeState> {
     final user = _currentUser;
 
     if (user == null) {
-      state = state.copyWith(
-        isLoadingProfile: false,
-      );
+      state = state.copyWith(isLoadingProfile: false);
       return;
     }
 
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final doc = await _firestore.collection('users').doc(user.uid).get();
 
       final data = doc.data() ?? {};
+      final streakDays = await _loadStreakDays(user.uid);
 
-      _applyProfileData(data, user);
+      _applyProfileData(data, user, streakDays: streakDays);
     } catch (e) {
       state = state.copyWith(
         isLoadingProfile: false,
-        error:
-            'Không thể tải thông tin người dùng.',
+        error: 'Không thể tải thông tin người dùng.',
       );
     }
   }
 
   void _applyProfileData(
     Map<String, dynamic> data,
-    User user,
-  ) {
-    final displayName =
-        _resolveDisplayName(data, user);
+    User user, {
+    required int streakDays,
+  }) {
+    final displayName = _resolveDisplayName(data, user);
 
-    final avatarInitial =
-        displayName.isNotEmpty
-            ? displayName[0].toUpperCase()
-            : 'U';
+    final avatarInitial = displayName.isNotEmpty
+        ? displayName[0].toUpperCase()
+        : 'U';
 
-    final achievementsRaw =
-        data['recentAchievements']
-            as List<dynamic>? ??
-        [];
+    final achievementsRaw = data['recentAchievements'] as List<dynamic>? ?? [];
 
-    final achievements =
-        achievementsRaw.map((e) {
-      return Map<String, dynamic>.from(
-        e as Map,
-      );
+    final achievements = achievementsRaw.map((e) {
+      return Map<String, dynamic>.from(e as Map);
     }).toList();
 
     state = state.copyWith(
@@ -199,59 +166,83 @@ class HomeViewModel extends StateNotifier<HomeState> {
       avatarInitial: avatarInitial,
       avatarUrl: data['avatarUrl'] as String?,
 
-      totalPoints:
-          (data['totalPoints'] as num?)
-                  ?.toInt() ??
-              0,
+      totalPoints: (data['totalPoints'] as num?)?.toInt() ?? 0,
 
-      currentPoints:
-          (data['currentPoints'] as num?)
-                  ?.toInt() ??
-              0,
+      currentPoints: (data['currentPoints'] as num?)?.toInt() ?? 0,
 
-      weekPoints:
-          (data['weekPoints'] as num?)
-                  ?.toInt() ??
-              0,
+      weekPoints: (data['weekPoints'] as num?)?.toInt() ?? 0,
 
-      monthPoints:
-          (data['monthPoints'] as num?)
-                  ?.toInt() ??
-              0,
+      monthPoints: (data['monthPoints'] as num?)?.toInt() ?? 0,
 
-      streakDays:
-          (data['streakDays'] as num?)
-                  ?.toInt() ??
-              0,
+      streakDays: streakDays,
 
-      cityRank:
-          (data['cityRank'] as num?)
-              ?.toInt(),
+      cityRank: (data['cityRank'] as num?)?.toInt(),
 
       recentAchievements: achievements,
     );
   }
 
-  String _resolveDisplayName(
-    Map<String, dynamic> data,
-    User user,
-  ) {
+  Future<int> _loadStreakDays(String uid) async {
+    final now = DateTime.now();
+    final startDate = DateTime(now.month >= 4 ? now.year : now.year - 1, 4, 1);
+
+    final submissionsSnap = await _firestore
+        .collection('submissions')
+        .where('userId', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    final uniqueDays = <DateTime>{};
+
+    for (final doc in submissionsSnap.docs) {
+      final data = doc.data();
+      final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+      if (createdAt == null) continue;
+      if (createdAt.isBefore(startDate)) continue;
+
+      uniqueDays.add(DateTime(createdAt.year, createdAt.month, createdAt.day));
+    }
+
+    if (uniqueDays.isEmpty) return 0;
+
+    final sortedDays = uniqueDays.toList()..sort((a, b) => b.compareTo(a));
+
+    var streak = 1;
+    var currentDay = sortedDays.first;
+    var hasConsecutivePair = false;
+
+    for (var i = 1; i < sortedDays.length; i++) {
+      final nextDay = sortedDays[i];
+      final diff = currentDay.difference(nextDay).inDays;
+
+      if (diff == 1) {
+        streak++;
+        hasConsecutivePair = true;
+        currentDay = nextDay;
+        continue;
+      }
+
+      if (diff == 0) {
+        continue;
+      }
+
+      break;
+    }
+
+    return hasConsecutivePair ? streak : 0;
+  }
+
+  String _resolveDisplayName(Map<String, dynamic> data, User user) {
     final candidates = [
-      (data['displayName'] as String?)
-          ?.trim(),
+      (data['displayName'] as String?)?.trim(),
 
-      (data['fullName'] as String?)
-          ?.trim(),
+      (data['fullName'] as String?)?.trim(),
 
-      (data['username'] as String?)
-          ?.trim(),
+      (data['username'] as String?)?.trim(),
 
       user.displayName?.trim(),
 
-      user.email
-          ?.split('@')
-          .first
-          .trim(),
+      user.email?.split('@').first.trim(),
     ];
 
     return candidates.firstWhere(
@@ -269,78 +260,51 @@ class HomeViewModel extends StateNotifier<HomeState> {
     final user = _currentUser;
 
     if (user == null) {
-      state = state.copyWith(
-        isLoadingTasks: false,
-      );
+      state = state.copyWith(isLoadingTasks: false);
       return;
     }
 
     try {
-      final submissionsSnap =
-          await _firestore
-              .collection('submissions')
-              .where(
-                'userId',
-                isEqualTo: user.uid,
-              )
-              .orderBy(
-                'createdAt',
-                descending: true,
-              )
-              .limit(3)
-              .get();
+      final submissionsSnap = await _firestore
+          .collection('submissions')
+          .where('userId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true)
+          .limit(3)
+          .get();
 
-      final tasks =
-          submissionsSnap.docs.map((doc) {
+      final tasks = submissionsSnap.docs.map((doc) {
         final d = doc.data();
 
         return {
           'id': doc.id,
 
-          'title':
-              d['taskTitle'] ?? 'Nhiệm vụ',
+          'title': d['taskTitle'] ?? 'Nhiệm vụ',
 
-          'category':
-              d['category'] ?? 'General',
+          'category': d['category'] ?? 'General',
 
-          'points':
-              (d['pointsReward'] as num?)
-                      ?.toInt() ??
-                  0,
+          'points': (d['pointsReward'] as num?)?.toInt() ?? 0,
 
-          'done':
-              d['status'] == 'approved',
+          'done': d['status'] == 'approved',
 
-          'status':
-              d['status'] ?? 'pending',
+          'status': d['status'] ?? 'pending',
 
-          'dueLabel': _statusLabel(
-            d['status'] as String?,
-          ),
+          'dueLabel': _statusLabel(d['status'] as String?),
         };
       }).toList();
 
-      state = state.copyWith(
-        isLoadingTasks: false,
-        recentTasks: tasks,
-      );
+      state = state.copyWith(isLoadingTasks: false, recentTasks: tasks);
     } catch (e) {
       await _loadRecentTasksFallback(user);
     }
   }
 
-  Future<void> _loadRecentTasksFallback(
-    User user,
-  ) async {
+  Future<void> _loadRecentTasksFallback(User user) async {
     try {
       final snap = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('tasks')
-          .orderBy(
-            'updatedAt',
-            descending: true,
-          )
+          .orderBy('updatedAt', descending: true)
           .limit(3)
           .get();
 
@@ -350,32 +314,21 @@ class HomeViewModel extends StateNotifier<HomeState> {
         return {
           'id': doc.id,
 
-          'title':
-              d['title'] ?? 'Nhiệm vụ',
+          'title': d['title'] ?? 'Nhiệm vụ',
 
-          'category':
-              d['category'] ?? 'General',
+          'category': d['category'] ?? 'General',
 
-          'points':
-              (d['pointsReward'] as num?)
-                      ?.toInt() ??
-                  0,
+          'points': (d['pointsReward'] as num?)?.toInt() ?? 0,
 
-          'done':
-              d['done'] ?? false,
+          'done': d['done'] ?? false,
 
           'dueLabel': 'Hôm nay',
         };
       }).toList();
 
-      state = state.copyWith(
-        isLoadingTasks: false,
-        recentTasks: tasks,
-      );
+      state = state.copyWith(isLoadingTasks: false, recentTasks: tasks);
     } catch (e) {
-      state = state.copyWith(
-        isLoadingTasks: false,
-      );
+      state = state.copyWith(isLoadingTasks: false);
     }
   }
 
@@ -407,14 +360,15 @@ class HomeViewModel extends StateNotifier<HomeState> {
   }
 }
 
-final homeViewModelProvider =
-    StateNotifierProvider<
-      HomeViewModel,
-      HomeState
-    >((ref) {
+final homeViewModelProvider = StateNotifierProvider<HomeViewModel, HomeState>((
+  ref,
+) {
   return HomeViewModel();
-}); 
-final approvedSubmissionsCountProvider = StreamProvider.family<int, String?>((ref, uid) {
+});
+final approvedSubmissionsCountProvider = StreamProvider.family<int, String?>((
+  ref,
+  uid,
+) {
   if (uid == null) return Stream.value(0);
 
   return FirebaseFirestore.instance

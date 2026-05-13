@@ -81,6 +81,20 @@ class SubmissionService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
+      // Check for existing submission with same taskId by this user to prevent duplicates
+      final existing = await FirebaseFirestore.instance
+          .collection('submissions')
+          .where('userId', isEqualTo: user.uid)
+          .where('taskId', isEqualTo: task.id)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        // Duplicate found — abort submit to prevent spam/duplicate points
+        _setLoading(false);
+        return false;
+      }
+
       //Upload ảnh lên Cloudinary
       final downloadUrls = await _uploadImages(images, user.uid);
       //lấy từ provider user
