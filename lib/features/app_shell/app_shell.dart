@@ -87,22 +87,22 @@ class _AppShellState extends State<AppShell> {
             BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_outlined),
               activeIcon: Icon(Icons.bar_chart_rounded),
-              label: 'Rank',
+              label: 'BXH',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.assignment_outlined),
               activeIcon: Icon(Icons.assignment_rounded),
-              label: 'Tasks',
+              label: 'Nhiệm vụ',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.map_outlined),
               activeIcon: Icon(Icons.map_rounded),
-              label: 'Map',
+              label: 'Bản đồ',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.shopping_bag_outlined),
               activeIcon: Icon(Icons.shopping_bag_rounded),
-              label: 'Store',
+              label: 'Đổi thưởng',
             ),
           ],
         ),
