@@ -142,7 +142,7 @@ class AdminSubmissionsTab extends ConsumerWidget {
                       if (selected) {
                         // Cập nhật trạng thái vào Provider
                         ref.read(statusFilterProvider.notifier).state =
-                            option['value']!;
+                        option['value']!;
                       }
                     },
                   ),
@@ -157,10 +157,10 @@ class AdminSubmissionsTab extends ConsumerWidget {
 
   // Widget Thẻ bài nộp (Submission Card)
   Widget _buildSubmissionCard(
-    BuildContext context,
-    WidgetRef ref,
-    SubmissionModel sub,
-  ) {
+      BuildContext context,
+      WidgetRef ref,
+      SubmissionModel sub,
+      ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
@@ -288,17 +288,18 @@ class AdminSubmissionsTab extends ConsumerWidget {
   }
 
   Widget _buildActionArea(
-    BuildContext context,
-    WidgetRef ref,
-    SubmissionModel sub,
-  ) {
+      BuildContext context,
+      WidgetRef ref,
+      SubmissionModel sub,
+      ) {
     // Đang chờ duyệt
     if (sub.status == 'pending') {
       return Row(
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () => _showRejectDialog(context, ref, sub.id),
+              // ĐÃ SỬA: Truyền thêm sub.userId vào hàm này
+              onPressed: () => _showRejectDialog(context, ref, sub.id, sub.userId),
               icon: const Icon(Icons.close),
               label: const Text("Từ chối"),
               style: OutlinedButton.styleFrom(
@@ -466,12 +467,13 @@ class AdminSubmissionsTab extends ConsumerWidget {
     );
   }
 
-  // Dialog nhập lý do từ chối
+  // ĐÃ SỬA: Thêm String userId vào khai báo hàm
   void _showRejectDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String submissionId,
-  ) {
+      BuildContext context,
+      WidgetRef ref,
+      String submissionId,
+      String userId,
+      ) {
     // Controller để lấy text từ ô nhập liệu
     final reasonController = TextEditingController();
 
@@ -544,10 +546,10 @@ class AdminSubmissionsTab extends ConsumerWidget {
                   return;
                 }
 
-                // Gọi Riverpod để update Firebase
+                // ĐÃ SỬA: Truyền đủ 3 tham số (submissionId, userId, reason)
                 ref
                     .read(adminActionProvider.notifier)
-                    .reject(submissionId, reason);
+                    .reject(submissionId, userId, reason);
 
                 // Đóng Dialog sau khi thao tác
                 Navigator.pop(ctx);

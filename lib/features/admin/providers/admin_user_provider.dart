@@ -1,9 +1,16 @@
 // lib/features/admin/providers/admin_user_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../data/models/user_model.dart';
-import '../../../data/repositories/admin_user_repository.dart';// lib/features/admin/providers/admin_user_provider.dart
 import '../../../data/models/submission_model.dart';
 import '../../../data/models/transaction_model.dart';
+import '../../../data/repositories/admin_user_repository.dart';
+
+// --- CHỈNH SỬA 1: Import thêm NotificationRepository ---
+import '../../../data/repositories/notification_repository.dart';
+// -------------------------------------------------------
+
+final adminUserRepoProvider = Provider((ref) => AdminUserRepository());
 
 // Provider lấy danh sách nhiệm vụ của User
 final userSubmissionsProvider = StreamProvider.family<List<SubmissionModel>, String>((ref, userId) {
@@ -17,8 +24,6 @@ final userTransactionsProvider = StreamProvider.family<List<TransactionModel>, S
 
 // Quản lý Tab đang chọn trong phần Lịch sử (0: Nhiệm vụ, 1: Giao dịch)
 final activeHistoryTabProvider = StateProvider<int>((ref) => 0);
-
-final adminUserRepoProvider = Provider((ref) => AdminUserRepository());
 
 // --- CÁC PROVIDER TRẠNG THÁI (STATE) ---
 final userSearchQueryProvider = StateProvider<String>((ref) => "");
@@ -50,7 +55,6 @@ final filteredUsersProvider = Provider<AsyncValue<List<UserModel>>>((ref) {
     }).toList();
 
     // 2. Lọc theo Trạng thái (Active / Blocked)
-    // Giả định: dùng trường role để phân biệt ('blocked' là bị khóa)
     filteredList = filteredList.where((user) {
       final isBlocked = user.role == 'blocked';
       if (filter == UserFilter.active) return !isBlocked;
@@ -75,27 +79,59 @@ final filteredUsersProvider = Provider<AsyncValue<List<UserModel>>>((ref) {
 });
 
 // --- VIEW MODEL XỬ LÝ ACTION ---
-// Thay thế hoặc thêm vào trong class AdminUserActionViewModel
 class AdminUserActionViewModel extends StateNotifier<AsyncValue<void>> {
   final AdminUserRepository _repo;
+
+  // --- CHỈNH SỬA 2: Khởi tạo Notification Repo để gửi thông báo ---
+  final NotificationRepository _notiRepo = NotificationRepository();
+  // ---------------------------------------------------------------
+
   AdminUserActionViewModel(this._repo) : super(const AsyncValue.data(null));
 
   Future<void> toggleStatus(String uid, bool currentStatus) async {
     state = const AsyncValue.loading();
     try {
-      // Lưu ý: Nếu khóa thì set role thành 'blocked', nếu mở khóa thì trả về 'user'
       await _repo.toggleUserStatus(uid, currentStatus);
+
+      // --- CHỈNH SỬA 3: Bắn thông báo tự động khi Khóa/Mở khóa tài khoản ---
+      String title = currentStatus ? "🔒 Tài khoản bị khóa" : "🔓 Mở khóa tài khoản";
+      String body = currentStatus
+          ? "Tài khoản của bạn đã bị khóa do vi phạm chính sách của hệ thống."
+          : "Tài khoản của bạn đã được mở khóa. Chào mừng quay trở lại!";
+
+      await _notiRepo.sendNotification(
+        userId: uid,
+        title: title,
+        body: body,
+        type: 'system', // Loại: Hệ thống
+      );
+      // --------------------------------------------------------------------
+
       state = const AsyncValue.data(null);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
   }
 
-  // THÊM HÀM NÀY VÀO ĐÂY: Hàm đổi Role
   Future<void> changeRole(String uid, String newRole) async {
     state = const AsyncValue.loading();
     try {
       await _repo.updateUserRole(uid, newRole);
+
+      // --- CHỈNH SỬA 4: Bắn thông báo tự động khi Cấp/Hủy quyền Admin ---
+      String title = newRole == 'admin' ? "🛡️ Thăng cấp Quản trị viên" : "Hủy quyền Quản trị";
+      String body = newRole == 'admin'
+          ? "Chúc mừng! Bạn đã được cấp quyền Admin. Bây giờ bạn có thể truy cập khu vực Quản trị."
+          : "Tài khoản của bạn đã được chuyển về cấp độ Người dùng tiêu chuẩn.";
+
+      await _notiRepo.sendNotification(
+        userId: uid,
+        title: title,
+        body: body,
+        type: 'role', // Loại: Vai trò
+      );
+      // ------------------------------------------------------------------
+
       state = const AsyncValue.data(null);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);

@@ -6,6 +6,11 @@ import 'package:green_app/features/home/viewmodel/home_viewmodel.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../router/app_router.dart';
+import '../viewmodel/home_viewmodel.dart';
+
+// --- ĐÃ THÊM: Import Widget chiếc chuông thông báo ---
+import '../../notifications/views/notification_bell.dart';
+// --------------------------------------------------------
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -168,10 +173,25 @@ class _HomeHeader extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
+
+        // --- ĐÃ THAY ĐỔI: Sử dụng chuông thông báo mới ---
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: const NotificationBell(iconColor: AppColors.textSecondary),
+        ),
+        // -------------------------------------------------
+
+        const SizedBox(width: 8),
         GestureDetector(
           onTap: onProfileTap,
           child: CircleAvatar(

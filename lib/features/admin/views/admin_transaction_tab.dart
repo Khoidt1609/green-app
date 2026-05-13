@@ -47,7 +47,7 @@ class AdminTransactionsTab extends ConsumerWidget {
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "${tx.userName} muốn rút tiền",
@@ -141,10 +141,10 @@ class AdminTransactionsTab extends ConsumerWidget {
 
   // Dialog hiển thị mã QR
   void _showVietQRDialog(
-    BuildContext context,
-    WidgetRef ref,
-    TransactionModel tx,
-  ) {
+      BuildContext context,
+      WidgetRef ref,
+      TransactionModel tx,
+      ) {
     final bankCode = tx.bankDetails?.bankCode ?? '';
     final accountNo = tx.bankDetails?.accountNo ?? '';
     final accountName = tx.bankDetails?.accountName ?? '';
@@ -218,10 +218,10 @@ class AdminTransactionsTab extends ConsumerWidget {
                 // Đóng dialog trước
                 Navigator.pop(ctx);
 
-                // Gọi API update trạng thái lên Firebase
+                // --- CHỈNH SỬA Ở ĐÂY: Thêm tx.userId vào hàm markAsCompleted ---
                 await ref
                     .read(adminTxActionProvider.notifier)
-                    .markAsCompleted(tx.id);
+                    .markAsCompleted(tx.id, tx.userId);
 
                 // Hiển thị thông báo (Record sẽ tự biến mất vì Stream tự cập nhật)
                 if (context.mounted) {
@@ -241,10 +241,10 @@ class AdminTransactionsTab extends ConsumerWidget {
   }
 
   void _showRejectConfirmDialog(
-    BuildContext context,
-    WidgetRef ref,
-    TransactionModel tx,
-  ) {
+      BuildContext context,
+      WidgetRef ref,
+      TransactionModel tx,
+      ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -254,7 +254,7 @@ class AdminTransactionsTab extends ConsumerWidget {
         ),
         content: Text(
           "Bạn có chắc chắn muốn hủy lệnh rút ${tx.amountVND}đ của ${tx.userName}?\n\n"
-          "Hệ thống sẽ hoàn lại điểm vào tài khoản của người dùng này.",
+              "Hệ thống sẽ hoàn lại điểm vào tài khoản của người dùng này.",
         ),
         actions: [
           TextButton(
@@ -294,7 +294,7 @@ class AdminTransactionsTab extends ConsumerWidget {
     // Tính tổng tiền đang chờ xử lý
     final totalAmount = list.fold<int>(
       0,
-      (sum, item) => sum + (item.amountVND ?? 0),
+          (sum, item) => sum + (item.amountVND ?? 0),
     );
 
     return Container(
