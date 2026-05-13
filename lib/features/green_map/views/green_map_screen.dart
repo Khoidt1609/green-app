@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map/flutter_map.dart'
     show CircleLayer, CircleMarker;
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -397,6 +398,7 @@ class _GreenMapScreenState
               'com.example.green_app',
 
           maxZoom: 19,
+          tileProvider: CancellableNetworkTileProvider(),
         ),
 
         // USER RADIUS

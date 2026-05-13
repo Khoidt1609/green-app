@@ -6,6 +6,7 @@ class SubmissionModel {
   final String taskId;
   final String taskTitle;
   final String userName;
+  final String? userAvatar;
   final List<String> proofUrls;
   final int pointsReward;
   final String status;
@@ -18,6 +19,7 @@ class SubmissionModel {
     required this.taskId,
     required this.taskTitle,
     required this.userName,
+    required this.userAvatar,
     required this.proofUrls,
     required this.pointsReward,
     this.status = 'pending',
@@ -32,6 +34,7 @@ class SubmissionModel {
     String? taskId,
     String? taskTitle,
     String? userName,
+    String? userAvatar,
     List<String>? proofUrls,
     int? pointsReward,
     String? status,
@@ -44,6 +47,7 @@ class SubmissionModel {
       taskId: taskId ?? this.taskId,
       taskTitle: taskTitle ?? this.taskTitle,
       userName: userName ?? this.userName,
+      userAvatar: userAvatar ?? this.userAvatar,
       proofUrls: proofUrls ?? this.proofUrls,
       pointsReward: pointsReward ?? this.pointsReward,
       status: status ?? this.status,
@@ -58,6 +62,7 @@ class SubmissionModel {
       'taskId': taskId,
       'taskTitle': taskTitle,
       'userName': userName,
+      'userAvatar': userAvatar,
       'proofUrls': proofUrls,
       'pointsReward': pointsReward,
       'status': status,
@@ -75,6 +80,7 @@ class SubmissionModel {
       taskId: map['taskId'] as String? ?? '',
       taskTitle: map['taskTitle'] as String? ?? '',
       userName: map['userName'] as String? ?? '',
+      userAvatar: map['userAvatar'] as String? ?? '',
       proofUrls: List<String>.from(map['proofUrls'] as List? ?? []),
       pointsReward: (map['pointsReward'] as num?)?.toInt() ?? 0,
       status: map['status'] as String? ?? 'pending',

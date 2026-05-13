@@ -183,7 +183,15 @@ class AdminSubmissionsTab extends ConsumerWidget {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: AppColors.primaryGreen,
-                child: Text(sub.userName[0].toUpperCase()),
+                backgroundImage: (sub.userAvatar != null && sub.userAvatar!.isNotEmpty)
+                    ? NetworkImage(sub.userAvatar!)
+                    : null,
+                child: (sub.userAvatar == null || sub.userAvatar!.isEmpty)
+                    ? Text(
+                  sub.userName.isNotEmpty ? sub.userName[0].toUpperCase() : 'U',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                )
+                    : null,
               ),
               const SizedBox(width: 10),
 

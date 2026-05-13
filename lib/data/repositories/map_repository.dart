@@ -9,143 +9,110 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/green_location_model.dart';
 
-// ─────────────────────────────────────────────────────────────
-// OVERPASS API
-// ─────────────────────────────────────────────────────────────
+// Overpass servers (có fallback)
+const _kOverpassUrls = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
 
-const _kOverpassUrl =
-    'https://overpass-api.de/api/interpreter';
-
-// bán kính 5km
 const _kOsmRadiusMeters = 5000;
+const kFallbackLocation = LatLng(16.0544, 108.2022);
 
 class MapRepository {
   MapRepository()
       : _dio = Dio(
           BaseOptions(
-            connectTimeout:
-                const Duration(seconds: 12),
-            receiveTimeout:
-                const Duration(seconds: 20),
+            connectTimeout: const Duration(seconds: 100),
+            receiveTimeout: const Duration(seconds: 100),
+            headers: {
+              'User-Agent': 'GreenApp/1.0 (Flutter Android) - Da Nang Green Map',
+              'Accept': 'application/json',
+            },
           ),
         );
 
   final Dio _dio;
 
   // ─────────────────────────────────────────────────────────────
-  // OPENSTREETMAP
+  // GET OSM LOCATIONS
   // ─────────────────────────────────────────────────────────────
-
-  Future<List<GreenLocation>> getOsmLocations(
-    LatLng center,
-  ) async {
+  Future<List<GreenLocation>> getOsmLocations(LatLng center) async {
     final lat = center.latitude;
     final lon = center.longitude;
     final r = _kOsmRadiusMeters;
 
     final query = '''
-[out:json][timeout:25];
+[out:json][timeout:30];
 
 (
-  // =========================
-  // TRẠM SẠC ĐIỆN
-  // =========================
+  // Trạm sạc điện
   node["amenity"="charging_station"](around:$r,$lat,$lon);
   way["amenity"="charging_station"](around:$r,$lat,$lon);
-
   node["socket:type2"](around:$r,$lat,$lon);
-  way["socket:type2"](around:$r,$lat,$lon);
-
   node["socket:ccs"](around:$r,$lat,$lon);
-  way["socket:ccs"](around:$r,$lat,$lon);
 
-  // =========================
-  // TÁI CHẾ
-  // =========================
+  // Điểm tái chế
   node["amenity"="recycling"](around:$r,$lat,$lon);
   way["amenity"="recycling"](around:$r,$lat,$lon);
-
   node["recycling_type"](around:$r,$lat,$lon);
-  way["recycling_type"](around:$r,$lat,$lon);
 
-  // =========================
-  // CHỢ XANH
-  // =========================
+  // Chợ xanh
   node["amenity"="marketplace"](around:$r,$lat,$lon);
   way["amenity"="marketplace"](around:$r,$lat,$lon);
-
   node["shop"="organic"](around:$r,$lat,$lon);
-  way["shop"="organic"](around:$r,$lat,$lon);
-
-  node["organic"="only"](around:$r,$lat,$lon);
-  way["organic"="only"](around:$r,$lat,$lon);
-
   node["shop"="greengrocer"](around:$r,$lat,$lon);
-  way["shop"="greengrocer"](around:$r,$lat,$lon);
+  node["organic"="only"](around:$r,$lat,$lon);
 );
 
 out center tags;
 ''';
 
-    try {
-      final response = await _dio.post(
-        _kOverpassUrl,
-        data:
-            'data=${Uri.encodeComponent(query)}',
-        options: Options(
-          contentType:
-              'application/x-www-form-urlencoded',
-          headers: {
-            'Accept': 'application/json',
-          },
-        ),
-      );
+    for (final url in _kOverpassUrls) {
+      try {
+        print('🌍 Đang thử Overpass: $url');
 
-      if (response.statusCode != 200) {
-        return [];
-      }
-
-      final data = response.data is String
-          ? jsonDecode(response.data)
-          : response.data;
-
-      final elements =
-          (data['elements']
-                  as List<dynamic>?) ??
-              [];
-
-      final locations = <GreenLocation>[];
-
-      for (final item in elements) {
-        final map =
-            item as Map<String, dynamic>;
-
-        final tags =
-            map['tags']
-                    as Map<String, dynamic>? ??
-                {};
-
-        final loc = _osmElementToLocation(
-          map,
-          tags,
+        final response = await _dio.post(
+          url,
+          data: 'data=${Uri.encodeComponent(query)}',
+          options: Options(
+            contentType: 'application/x-www-form-urlencoded',
+          ),
         );
 
-        if (loc != null) {
-          locations.add(loc);
+        if (response.statusCode == 200) {
+          final data = response.data is String
+              ? jsonDecode(response.data)
+              : response.data;
+
+          final elements = (data['elements'] as List<dynamic>?) ?? [];
+
+          print('✅ OSM Thành công: ${elements.length} elements từ $url');
+
+          final locations = <GreenLocation>[];
+
+          for (final item in elements) {
+            final map = item as Map<String, dynamic>;
+            final tags = map['tags'] as Map<String, dynamic>? ?? {};
+
+            final loc = _osmElementToLocation(map, tags);
+            if (loc != null) {
+              locations.add(loc);
+            }
+          }
+          return locations;
         }
+      } on DioException catch (e) {
+        print('❌ OSM Dio Error ($url): ${e.response?.statusCode} - ${e.message}');
+        continue;
+      } catch (e) {
+        print('❌ OSM Error ($url): $e');
+        continue;
       }
-
-      return locations;
-    } on DioException {
-      return [];
-    } catch (_) {
-      return [];
     }
-  }
 
-  // ─────────────────────────────────────────────────────────────
-  // CONVERT OSM → MODEL
-  // ─────────────────────────────────────────────────────────────
+    print('⚠️ Tất cả server Overpass đều thất bại');
+    return [];
+  }
 
   GreenLocation? _osmElementToLocation(
     Map<String, dynamic> element,
@@ -153,151 +120,72 @@ out center tags;
   ) {
     GreenLocationType? type;
 
-    final amenity =
-        tags['amenity']?.toString() ?? '';
-
-    final shop =
-        tags['shop']?.toString() ?? '';
-
-    // =========================
-    // SẠC ĐIỆN
-    // =========================
+    final amenity = tags['amenity']?.toString() ?? '';
+    final shop = tags['shop']?.toString() ?? '';
 
     if (amenity == 'charging_station' ||
         tags.containsKey('socket:type2') ||
         tags.containsKey('socket:ccs')) {
       type = GreenLocationType.charging;
-    }
-
-    // =========================
-    // TÁI CHẾ
-    // =========================
-
-    else if (amenity == 'recycling' ||
-        tags.containsKey('recycling_type')) {
+    } else if (amenity == 'recycling' || tags.containsKey('recycling_type')) {
       type = GreenLocationType.recycling;
-    }
-
-    // =========================
-    // CHỢ XANH
-    // =========================
-
-    else if (amenity == 'marketplace' ||
+    } else if (amenity == 'marketplace' ||
         shop == 'organic' ||
         shop == 'greengrocer' ||
         tags['organic'] == 'only') {
       type = GreenLocationType.greenMarket;
     }
 
-    if (type == null) {
-      return null;
-    }
+    if (type == null) return null;
 
-    double lat = 0;
-    double lon = 0;
-
-    // node
-
+    double lat = 0, lon = 0;
     if (element.containsKey('lat')) {
-      lat =
-          (element['lat'] as num).toDouble();
-
-      lon =
-          (element['lon'] as num).toDouble();
+      lat = (element['lat'] as num).toDouble();
+      lon = (element['lon'] as num).toDouble();
+    } else if (element['center'] != null) {
+      lat = (element['center']['lat'] as num).toDouble();
+      lon = (element['center']['lon'] as num).toDouble();
     }
 
-    // way
+    if (lat == 0 && lon == 0) return null;
 
-    else if (element['center'] != null) {
-      lat = (element['center']['lat']
-              as num)
-          .toDouble();
-
-      lon = (element['center']['lon']
-              as num)
-          .toDouble();
-    }
-
-    // dữ liệu lỗi
-
-    if (lat == 0 && lon == 0) {
-      return null;
-    }
-
-    return GreenLocation.fromOsm(
-      element,
-      type,
-    );
+    return GreenLocation.fromOsm(element, type);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // GPS
-  // ─────────────────────────────────────────────────────────────
-
   Future<LatLng?> getCurrentLocation() async {
     try {
-      bool serviceEnabled =
-          await Geolocator
-              .isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
 
-      if (!serviceEnabled) {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         return null;
       }
 
-      LocationPermission permission =
-          await Geolocator.checkPermission();
-
-      if (permission ==
-          LocationPermission.denied) {
-        permission =
-            await Geolocator.requestPermission();
-
-        if (permission ==
-            LocationPermission.denied) {
-          return null;
-        }
-      }
-
-      if (permission ==
-          LocationPermission.deniedForever) {
-        return null;
-      }
-
-      final pos =
-          await Geolocator.getCurrentPosition(
-        desiredAccuracy:
-            LocationAccuracy.high,
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 15),
       );
 
-      return LatLng(
-        pos.latitude,
-        pos.longitude,
-      );
-    } catch (_) {
+      return LatLng(pos.latitude, pos.longitude);
+    } catch (e) {
+      print('GPS ERROR: $e');
       return null;
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // DISTANCE
-  // ─────────────────────────────────────────────────────────────
-
-  double distanceBetween(
-    LatLng from,
-    LatLng to,
-  ) {
-    return const Distance().distance(
-      from,
-      to,
-    );
+  double distanceBetween(LatLng from, LatLng to) {
+    return const Distance().distance(from, to);
   }
 }
 
-// ─────────────────────────────────────────────────────────────
 // PROVIDER
-// ─────────────────────────────────────────────────────────────
-
-final mapRepositoryProvider =
-    Provider<MapRepository>(
+final mapRepositoryProvider = Provider<MapRepository>(
   (ref) => MapRepository(),
 );

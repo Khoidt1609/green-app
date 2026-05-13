@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/providers/auth_providers.dart';
 import '../../../data/models/submission_model.dart';
 import '../../../data/models/task_model.dart';
 
@@ -82,7 +83,13 @@ class SubmissionService {
 
       //Upload ảnh lên Cloudinary
       final downloadUrls = await _uploadImages(images, user.uid);
+      //lấy từ provider user
+      final currentUserData = await _ref.read(currentUserProvider.future);
 
+      if (currentUserData == null) {
+        print("Lỗi: Không lấy được thông tin User từ Firestore");
+        return false;
+      }
       //Lưu submission vào Firestore
       final submission = SubmissionModel(
         id: '',
@@ -90,6 +97,7 @@ class SubmissionService {
         userName: user.displayName ??
             user.email?.split('@').first ??
             'Người dùng GreenStep',
+        userAvatar: currentUserData.avatarUrl,
         taskId: task.id,
         taskTitle: task.title,
         proofUrls: downloadUrls,
