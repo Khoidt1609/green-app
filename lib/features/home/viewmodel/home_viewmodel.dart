@@ -70,6 +70,7 @@ class HomeState {
 
       avatarInitial:
           avatarInitial ?? this.avatarInitial,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
 
       totalPoints: totalPoints ?? this.totalPoints,
 
