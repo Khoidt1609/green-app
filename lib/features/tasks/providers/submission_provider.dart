@@ -84,7 +84,7 @@ class SubmissionService {
       //Upload ảnh lên Cloudinary
       final downloadUrls = await _uploadImages(images, user.uid);
       //lấy từ provider user
-      final currentUserData = _ref.read(currentUserProvider).value;
+      final currentUserData = await _ref.read(currentUserProvider.future);
 
       if (currentUserData == null) {
         print("Lỗi: Không lấy được thông tin User từ Firestore");
