@@ -71,6 +71,10 @@ class AuthViewModel extends Notifier<AsyncValue<void>> {
     state = const AsyncLoading();
 
     try {
+      // 0. XÓA SESSION CŨ VÀ ĐĂNG XUẤT HOÀN TOÀN TRƯỚC KHI ĐĂNG NHẬP MỚI
+      await _clearSessionUser();
+      await FirebaseAuth.instance.signOut();
+
       // 1. Cho phép AuthService đăng nhập Google
       await _authService.signInWithGoogle();
 

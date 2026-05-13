@@ -25,6 +25,27 @@ StreamProvider.autoDispose<List<SubmissionModel>>((ref) {
   });
 });
 
+// Lấy các bài nộp đã được duyệt (approved) của user hiện tại
+final approvedSubmissionsProvider =
+StreamProvider.autoDispose<List<SubmissionModel>>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return Stream.value([]);
+
+  return FirebaseFirestore.instance
+      .collection('submissions')
+      .where('userId', isEqualTo: uid)
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snap) {
+    final list = snap.docs
+        .map((doc) => SubmissionModel.fromDocument(doc))
+        .toList();
+    
+    // Lọc chỉ những submission đã approved phía client
+    return list.where((s) => s.status == 'approved').toList();
+  });
+});
+
 //trạng thái bài nộp theo từng taskId
 final taskSubmissionStatusProvider =
 Provider.autoDispose.family<SubmissionModel?, String>((ref, taskId) {

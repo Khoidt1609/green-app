@@ -19,7 +19,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-
+ 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -322,7 +322,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 18),
 
                       const Text(
-                        'Email hoặc tên đăng nhập',
+                        'Email ',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 13,
@@ -331,12 +331,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       const SizedBox(height: 6),
 
-                      _AuthField(
+                        _AuthField(
                         controller: _emailController,
                         hint:
                             'email@example.com hoặc minhnguyen',
                         prefixIcon:
-                            Icons.email_outlined,
+                          Icons.email_outlined,
                         keyboardType:
                             TextInputType.emailAddress,
                         validator: (value) {
@@ -372,7 +372,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         prefixIcon:
                             Icons.lock_outline,
                         obscureText:
-                            _obscurePassword,
+                          _obscurePassword,
                         suffixIcon: IconButton(
                           onPressed: () {
                             setState(() {
