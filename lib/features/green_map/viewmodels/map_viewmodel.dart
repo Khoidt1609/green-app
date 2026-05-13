@@ -21,6 +21,7 @@ class MapState {
     this.userLocation,
     this.selectedLocation,
     this.osmFetched = false,
+    this.usingFallbackLocation = false,
   });
 
   final List<GreenLocation> allLocations;
@@ -41,7 +42,10 @@ class MapState {
 
   final bool osmFetched;
 
-  // ─────────────────────────────────────────────────────────────────────────
+  /// true khi GPS không lấy được, đang dùng vị trí mặc định
+  final bool usingFallbackLocation;
+
+  // ─────────────────────────────────────────────────────────────
 
   MapState copyWith({
     List<GreenLocation>? allLocations,
@@ -53,6 +57,7 @@ class MapState {
     LatLng? userLocation,
     GreenLocation? selectedLocation,
     bool? osmFetched,
+    bool? usingFallbackLocation,
 
     bool clearFilter = false,
     bool clearError = false,
@@ -91,30 +96,32 @@ class MapState {
 
       osmFetched:
           osmFetched ?? this.osmFetched,
+
+      usingFallbackLocation:
+          usingFallbackLocation ??
+              this.usingFallbackLocation,
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // COMPUTED
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
   List<GreenLocation> get filteredLocations {
-    List<GreenLocation> result =
-        allLocations;
+    List<GreenLocation> result = allLocations;
 
     // Filter theo loại
-
     if (activeFilter != null) {
       result = result
-          .where(
-            (l) => l.type == activeFilter,
-          )
+          .where((l) => l.type == activeFilter)
           .toList();
     }
 
-    // Chỉ hiện trong bán kính 5km quanh user
-
-    if (userLocation != null) {
+    // Chỉ lọc theo bán kính khi userLocation hợp lệ
+    // (không phải null và không phải tọa độ 0,0)
+    if (userLocation != null &&
+        userLocation!.latitude != 0 &&
+        userLocation!.longitude != 0) {
       const distance = Distance();
 
       result = result.where((loc) {
@@ -139,9 +146,7 @@ class MapState {
   int countOsm() {
     return filteredLocations
         .where(
-          (l) =>
-              l.source ==
-              LocationSource.osm,
+          (l) => l.source == LocationSource.osm,
         )
         .length;
   }
@@ -151,22 +156,19 @@ class MapState {
 // VIEWMODEL
 // ─────────────────────────────────────────────────────────────────────────────
 
-class MapViewModel
-    extends StateNotifier<MapState> {
-  MapViewModel(this._repo)
-      : super(const MapState()) {
+class MapViewModel extends StateNotifier<MapState> {
+  MapViewModel(this._repo) : super(const MapState()) {
     _init();
   }
 
   final MapRepository _repo;
 
   // chống spam request khi kéo map
-
   LatLng? _lastFetchCenter;
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // INIT
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
   Future<void> _init() async {
     state = state.copyWith(
@@ -176,20 +178,35 @@ class MapViewModel
     );
 
     try {
-      // ── GPS ─────────────────────────────────────────────────────────────
+      // ── GPS ──────────────────────────────────────────────────
 
       final userPos =
           await _repo.getCurrentLocation();
 
+      // Dù GPS có hay không đều chọn được center để load OSM
+      // Nếu GPS fail → dùng fallback Đà Nẵng
+      final center = userPos ?? kFallbackLocation;
+      final usingFallback = userPos == null;
+
+      print(
+        'MAP CENTER: ${center.latitude}, ${center.longitude} '
+        '(fallback: $usingFallback)',
+      );
+
+      // Cập nhật userLocation nếu GPS OK
       if (userPos != null) {
         state = state.copyWith(
           userLocation: userPos,
+          usingFallbackLocation: false,
         );
-
-        // load OSM quanh vị trí user
-
-        await _loadOsm(userPos);
+      } else {
+        state = state.copyWith(
+          usingFallbackLocation: true,
+        );
       }
+
+      // Luôn load OSM, không phụ thuộc GPS
+      await _loadOsm(center);
     } catch (e) {
       print('MAP INIT ERROR: $e');
 
@@ -203,13 +220,11 @@ class MapViewModel
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // OSM
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
-  Future<void> _loadOsm(
-    LatLng center,
-  ) async {
+  Future<void> _loadOsm(LatLng center) async {
     state = state.copyWith(
       isOsmLoading: true,
       clearOsmError: true,
@@ -223,19 +238,12 @@ class MapViewModel
       );
 
       final osmLocs =
-          await _repo.getOsmLocations(
-        center,
-      );
+          await _repo.getOsmLocations(center);
 
-      print(
-        'RAW OSM LOCATIONS: '
-        '${osmLocs.length}',
-      );
+      print('RAW OSM LOCATIONS: ${osmLocs.length}');
 
       // chống marker trùng
-
-      final existing =
-          state.allLocations;
+      final existing = state.allLocations;
 
       const distCalc = Distance();
 
@@ -250,16 +258,10 @@ class MapViewModel
         );
       }).toList();
 
-      print(
-        'DEDUPED OSM LOCATIONS: '
-        '${deduped.length}',
-      );
+      print('DEDUPED OSM LOCATIONS: ${deduped.length}');
 
       state = state.copyWith(
-        allLocations: [
-          ...existing,
-          ...deduped,
-        ],
+        allLocations: [...existing, ...deduped],
         isOsmLoading: false,
         osmFetched: true,
       );
@@ -275,98 +277,70 @@ class MapViewModel
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // FILTER
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
-  void setFilter(
-    GreenLocationType? type,
-  ) {
+  void setFilter(GreenLocationType? type) {
     // null = tất cả
-
     if (type == null) {
-      state = state.copyWith(
-        clearFilter: true,
-      );
-
+      state = state.copyWith(clearFilter: true);
       return;
     }
 
     // toggle filter
-
     if (state.activeFilter == type) {
-      state = state.copyWith(
-        clearFilter: true,
-      );
+      state = state.copyWith(clearFilter: true);
     } else {
-      state = state.copyWith(
-        activeFilter: type,
-      );
+      state = state.copyWith(activeFilter: type);
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // SELECTION
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
-  void selectLocation(
-    GreenLocation loc,
-  ) {
-    state = state.copyWith(
-      selectedLocation: loc,
-    );
+  void selectLocation(GreenLocation loc) {
+    state = state.copyWith(selectedLocation: loc);
   }
 
   void clearSelection() {
-    state = state.copyWith(
-      clearSelected: true,
-    );
+    state = state.copyWith(clearSelected: true);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // REFRESH
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
   Future<void> refresh() async {
     _lastFetchCenter = null;
 
     // reset locations
-
-    state = state.copyWith(
-      allLocations: [],
-    );
+    state = state.copyWith(allLocations: []);
 
     await _init();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // FETCH OSM THEO MAP POSITION
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
   Future<void> fetchOsmAt(
     LatLng center, {
     int? radiusMeters,
   }) async {
-    // đang loading -> skip
-
-    if (state.isOsmLoading) {
-      return;
-    }
+    // đang loading → skip
+    if (state.isOsmLoading) return;
 
     // chống spam request
-
     if (_lastFetchCenter != null) {
-      final distance =
-          const Distance().distance(
+      final distance = const Distance().distance(
         _lastFetchCenter!,
         center,
       );
 
       // chỉ fetch khi move > 800m
-
-      if (distance < 800) {
-        return;
-      }
+      if (distance < 800) return;
     }
 
     _lastFetchCenter = center;
@@ -374,26 +348,20 @@ class MapViewModel
     await _loadOsm(center);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // NEAREST LOCATION
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
-  GreenLocation? nearestOf(
-    GreenLocationType type,
-  ) {
+  GreenLocation? nearestOf(GreenLocationType type) {
     final userPos = state.userLocation;
 
-    if (userPos == null) {
-      return null;
-    }
+    if (userPos == null) return null;
 
     final locs = state.allLocations
         .where((l) => l.type == type)
         .toList();
 
-    if (locs.isEmpty) {
-      return null;
-    }
+    if (locs.isEmpty) return null;
 
     locs.sort((a, b) {
       final dA = _repo.distanceBetween(
@@ -418,9 +386,7 @@ class MapViewModel
 // ─────────────────────────────────────────────────────────────────────────────
 
 final mapViewModelProvider =
-    StateNotifierProvider<
-        MapViewModel,
-        MapState>(
+    StateNotifierProvider<MapViewModel, MapState>(
   (ref) {
     return MapViewModel(
       ref.read(mapRepositoryProvider),

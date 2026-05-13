@@ -19,14 +19,19 @@ const _kOverpassUrl =
 // bán kính 5km
 const _kOsmRadiusMeters = 5000;
 
+// Fallback khi GPS không khả dụng (Đà Nẵng)
+const kFallbackLocation =
+    LatLng(16.0544, 108.2022);
+
 class MapRepository {
   MapRepository()
       : _dio = Dio(
           BaseOptions(
+            // Tăng timeout để tránh lỗi trên Android mạng chậm
             connectTimeout:
-                const Duration(seconds: 12),
-            receiveTimeout:
                 const Duration(seconds: 20),
+            receiveTimeout:
+                const Duration(seconds: 35),
           ),
         );
 
@@ -44,7 +49,7 @@ class MapRepository {
     final r = _kOsmRadiusMeters;
 
     final query = '''
-[out:json][timeout:25];
+[out:json][timeout:30];
 
 (
   // =========================
@@ -136,9 +141,11 @@ out center tags;
       }
 
       return locations;
-    } on DioException {
+    } on DioException catch (e) {
+      print('OSM DIO ERROR: ${e.type} - ${e.message}');
       return [];
-    } catch (_) {
+    } catch (e) {
+      print('OSM UNKNOWN ERROR: $e');
       return [];
     }
   }
@@ -197,7 +204,6 @@ out center tags;
     double lon = 0;
 
     // node
-
     if (element.containsKey('lat')) {
       lat =
           (element['lat'] as num).toDouble();
@@ -205,9 +211,7 @@ out center tags;
       lon =
           (element['lon'] as num).toDouble();
     }
-
     // way
-
     else if (element['center'] != null) {
       lat = (element['center']['lat']
               as num)
@@ -219,7 +223,6 @@ out center tags;
     }
 
     // dữ liệu lỗi
-
     if (lat == 0 && lon == 0) {
       return null;
     }
@@ -236,21 +239,31 @@ out center tags;
 
   Future<LatLng?> getCurrentLocation() async {
     try {
-      bool serviceEnabled =
-          await Geolocator
-              .isLocationServiceEnabled();
+      // Kiểm tra GPS service có bật không
+      final serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      print('GPS SERVICE ENABLED: $serviceEnabled');
 
       if (!serviceEnabled) {
+        print('GPS: Service disabled');
         return null;
       }
 
+      // Kiểm tra và xin quyền
       LocationPermission permission =
           await Geolocator.checkPermission();
+
+      print('GPS PERMISSION: $permission');
 
       if (permission ==
           LocationPermission.denied) {
         permission =
             await Geolocator.requestPermission();
+
+        print(
+          'GPS PERMISSION AFTER REQUEST: $permission',
+        );
 
         if (permission ==
             LocationPermission.denied) {
@@ -260,20 +273,37 @@ out center tags;
 
       if (permission ==
           LocationPermission.deniedForever) {
+        print('GPS: Permission denied forever');
         return null;
       }
 
+      // Lấy vị trí với timeout để tránh treo vô hạn
       final pos =
           await Geolocator.getCurrentPosition(
+        // medium nhanh hơn high, phù hợp mobile
         desiredAccuracy:
-            LocationAccuracy.high,
+            LocationAccuracy.medium,
+        timeLimit:
+            const Duration(seconds: 12),
+      );
+
+      print(
+        'GPS OK: ${pos.latitude}, ${pos.longitude}',
       );
 
       return LatLng(
         pos.latitude,
         pos.longitude,
       );
-    } catch (_) {
+    } on LocationServiceDisabledException {
+      print('GPS ERROR: Location service disabled');
+      return null;
+    } on PermissionDeniedException catch (e) {
+      print('GPS ERROR: Permission denied - $e');
+      return null;
+    } catch (e) {
+      // Timeout hoặc lỗi khác → trả null, _init sẽ dùng fallback
+      print('GPS ERROR: $e');
       return null;
     }
   }
