@@ -11,6 +11,7 @@ class SubmissionModel {
   final int pointsReward;
   final String status;
   final String? adminNote;
+  final String? userNote;
   final DateTime createdAt;
 
   SubmissionModel({
@@ -24,6 +25,7 @@ class SubmissionModel {
     required this.pointsReward,
     this.status = 'pending',
     this.adminNote,
+    this.userNote,
     required this.createdAt,
   });
 
@@ -39,6 +41,7 @@ class SubmissionModel {
     int? pointsReward,
     String? status,
     String? adminNote,
+    String? userNote,
     DateTime? createdAt,
   }) {
     return SubmissionModel(
@@ -52,6 +55,7 @@ class SubmissionModel {
       pointsReward: pointsReward ?? this.pointsReward,
       status: status ?? this.status,
       adminNote: adminNote ?? this.adminNote,
+      userNote: userNote ?? this.userNote,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -67,6 +71,7 @@ class SubmissionModel {
       'pointsReward': pointsReward,
       'status': status,
       'adminNote': adminNote,
+      'userNote': userNote,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -85,6 +90,7 @@ class SubmissionModel {
       pointsReward: (map['pointsReward'] as num?)?.toInt() ?? 0,
       status: map['status'] as String? ?? 'pending',
       adminNote: map['adminNote'] as String?,
+      userNote: map['userNote'] as String? ?? '',
       createdAt:
           (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
