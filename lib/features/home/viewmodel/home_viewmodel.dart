@@ -409,3 +409,13 @@ final homeViewModelProvider =
     >((ref) {
   return HomeViewModel();
 });
+final approvedSubmissionsCountProvider = StreamProvider.family<int, String?>((ref, uid) {
+  if (uid == null) return Stream.value(0);
+
+  return FirebaseFirestore.instance
+      .collection('submissions')
+      .where('userId', isEqualTo: uid)
+      .where('status', isEqualTo: 'approved')
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+});
