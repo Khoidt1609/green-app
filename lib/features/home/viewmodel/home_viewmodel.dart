@@ -9,6 +9,7 @@ class HomeState {
 
   final String displayName;
   final String avatarInitial;
+  final String? avatarUrl;
 
   final int totalPoints;
   final int currentPoints;
@@ -33,6 +34,7 @@ class HomeState {
     this.monthPoints = 0,
     this.streakDays = 0,
     this.cityRank,
+    this.avatarUrl,
     this.recentTasks = const [],
     this.recentAchievements = const [],
   });
@@ -53,6 +55,7 @@ class HomeState {
     List<Map<String, dynamic>>? recentAchievements,
     bool clearError = false,
     bool clearCityRank = false,
+    String? avatarUrl,
   }) {
     return HomeState(
       isLoadingProfile:
@@ -193,6 +196,7 @@ class HomeViewModel extends StateNotifier<HomeState> {
       displayName: displayName,
 
       avatarInitial: avatarInitial,
+      avatarUrl: data['avatarUrl'] as String?,
 
       totalPoints:
           (data['totalPoints'] as num?)
@@ -408,7 +412,7 @@ final homeViewModelProvider =
       HomeState
     >((ref) {
   return HomeViewModel();
-});
+}); 
 final approvedSubmissionsCountProvider = StreamProvider.family<int, String?>((ref, uid) {
   if (uid == null) return Stream.value(0);
 

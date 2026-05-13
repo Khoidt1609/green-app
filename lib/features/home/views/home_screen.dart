@@ -182,25 +182,12 @@ class _HomeHeader extends StatelessWidget {
           const SizedBox(width: 8),
 
           // Avatar
-          GestureDetector(
+         GestureDetector(
             onTap: onProfileTap,
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen,
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: Center(
-                child: Text(
-                  state.avatarInitial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+            child: _UserAvatar(
+              avatarUrl: state.avatarUrl,
+              displayName: state.displayName,
+              size: 42,
             ),
           ),
         ],
@@ -225,23 +212,10 @@ class _ProfileCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen,
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: Center(
-              child: Text(
-                state.avatarInitial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 24,
-                ),
-              ),
-            ),
+         _UserAvatar(
+            avatarUrl: state.avatarUrl,
+            displayName: state.displayName,
+            size: 64,
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -299,6 +273,56 @@ class _ProfileCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+ class _UserAvatar extends StatelessWidget {
+  final String? avatarUrl;
+  final String displayName;
+  final double size;
+
+  const _UserAvatar({
+    required this.avatarUrl,
+    required this.displayName,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = displayName.isNotEmpty 
+        ? displayName[0].toUpperCase() 
+        : '?';
+
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundImage: NetworkImage(avatarUrl!),
+        backgroundColor: AppColors.primaryGreen,
+        onBackgroundImageError: (_, __) {
+          // Fallback nếu load ảnh lỗi
+        },
+        child: null,
+      );
+    } else {
+      // Fallback chữ cái
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.primaryGreen,
+          borderRadius: BorderRadius.circular(size),
+        ),
+        child: Center(
+          child: Text(
+            initial,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: size * 0.45,
+            ),
+          ),
+        ),
+      );
+    }
   }
 }
 
