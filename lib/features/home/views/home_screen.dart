@@ -127,7 +127,6 @@ class HomeScreen extends ConsumerWidget {
                         const SizedBox(height: 24),
                         _SectionHeader(
                           title: 'Nhiệm vụ đã làm',
-                          
                         ),
                         const SizedBox(height: 12),
                         const ApprovedSubmissionsList(),
@@ -413,43 +412,50 @@ class _MiniSummaryTile extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE4EFE8)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                child: Icon(icon, size: 17, color: const Color(0xFF2CC185)),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF667A70),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+              ],
+            ),
+            child: Icon(icon, size: 17, color: const Color(0xFF2CC185)),
           ),
-          Text(
-            '$value pts',
-            style: const TextStyle(
-              color: Color(0xFF10261E),
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: 8),
+          
+          // Phần text linh hoạt
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF667A70),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$value pts',
+                  style: const TextStyle(
+                    color: Color(0xFF10261E),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
