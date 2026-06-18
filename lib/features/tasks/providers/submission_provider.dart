@@ -12,27 +12,21 @@ import '../../../core/services/gemini_service.dart';
 import '../../../data/models/submission_model.dart';
 import '../../../data/models/task_model.dart';
 
-// Danh sách file ảnh đang chọn (tự reset khi sheet đóng)
 final pickedImagesProvider =
 StateProvider.autoDispose<List<File>>((ref) => []);
 
-// Trạng thái đang upload / submit
 final submissionLoadingProvider =
 StateProvider.autoDispose<bool>((ref) => false);
 
-// MỚI: Gemini đang phân tích ảnh
 final isAnalyzingProvider =
 StateProvider.autoDispose<bool>((ref) => false);
 
-// MỚI: Kết quả phân tích của Gemini
 final aiAnalysisResultProvider =
 StateProvider.autoDispose<GeminiAnalysisResult?>((ref) => null);
 
-// Service chính để thao tác ảnh & nộp bài
 final submissionServiceProvider =
 Provider.autoDispose((ref) => SubmissionService(ref));
 
-// Cloudinary config
 const _cloudName = 'dfvtfibtx';
 const _uploadPreset = 'greenstep_preset';
 const _cloudinaryUrl =
@@ -84,11 +78,12 @@ class SubmissionService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      // Check duplicate
+      // Chỉ chặn nếu đang có bài PENDING — approved/rejected thì cho nộp lại
       final existing = await FirebaseFirestore.instance
           .collection('submissions')
           .where('userId', isEqualTo: user.uid)
           .where('taskId', isEqualTo: task.id)
+          .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
 
@@ -116,8 +111,7 @@ class SubmissionService {
       // Upload ảnh lên Cloudinary
       final downloadUrls = await _uploadImages(images, user.uid);
 
-      // FIX: Đọc avatarUrl trực tiếp từ Firestore thay vì dùng
-      // currentUserProvider.future (StreamProvider hay bị treo)
+      // Đọc avatarUrl trực tiếp từ Firestore
       String? avatarUrl;
       try {
         final userDoc = await FirebaseFirestore.instance
