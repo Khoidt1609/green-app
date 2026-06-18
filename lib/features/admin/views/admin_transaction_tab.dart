@@ -40,14 +40,18 @@ class AdminTransactionsTab extends ConsumerWidget {
                               children: [
                                 CircleAvatar(
                                   radius: 25,
-                                  backgroundColor: AppColors.accentOrange.withOpacity(0.1),
-                                  child: const Icon(Icons.account_balance_wallet, color: AppColors.accentOrange),
+                                  backgroundColor: AppColors.accentOrange
+                                      .withOpacity(0.1),
+                                  child: const Icon(
+                                    Icons.account_balance_wallet,
+                                    color: AppColors.accentOrange,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "${tx.userName} muốn rút tiền",
@@ -141,20 +145,21 @@ class AdminTransactionsTab extends ConsumerWidget {
 
   // Dialog hiển thị mã QR
   void _showVietQRDialog(
-      BuildContext context,
-      WidgetRef ref,
-      TransactionModel tx,
-      ) {
+    BuildContext context,
+    WidgetRef ref,
+    TransactionModel tx,
+  ) {
     final bankCode = tx.bankDetails?.bankCode ?? '';
     final accountNo = tx.bankDetails?.accountNo ?? '';
     final accountName = tx.bankDetails?.accountName ?? '';
     final amount = tx.amountVND;
-    final note = "GreenStep thanh toan thuong";
-
+    final note = "GREENAPP ${tx.id}";
+    // Mã hóa chuỗi để bỏ vào URL (biến khoảng trắng thành %20)
+    final encodedNote = Uri.encodeComponent(note);
     // Tạo QR bằng vietqr.io
     final qrUrl =
         'https://img.vietqr.io/image/$bankCode-$accountNo-compact2.png'
-        '?amount=$amount&addInfo=$note&accountName=$accountName';
+        '?amount=$amount&addInfo=$encodedNote&accountName=$accountName';
 
     showDialog(
       context: context,
@@ -195,44 +200,37 @@ class AdminTransactionsTab extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
+              const SizedBox(height: 20),
+              // Hiệu ứng chờ
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Đang chờ xử lý...",
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      fontSize: 13,
+                      color: AppColors.primaryDarkGreen,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text("Đóng", style: TextStyle(color: Colors.grey)),
-            ),
-
-            // Nút Xác nhận Hoàn thành
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen,
-              ),
-              icon: const Icon(Icons.check, color: Colors.white),
-              label: const Text(
-                "Hoàn tất",
-                style: TextStyle(color: Colors.white),
-              ),
-              onPressed: () async {
-                // Đóng dialog trước
-                Navigator.pop(ctx);
-
-                // --- CHỈNH SỬA Ở ĐÂY: Thêm tx.userId vào hàm markAsCompleted ---
-                await ref
-                    .read(adminTxActionProvider.notifier)
-                    .markAsCompleted(tx.id, tx.userId);
-
-                // Hiển thị thông báo (Record sẽ tự biến mất vì Stream tự cập nhật)
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Giao dịch thành công!"),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              },
             ),
           ],
         );
@@ -241,10 +239,10 @@ class AdminTransactionsTab extends ConsumerWidget {
   }
 
   void _showRejectConfirmDialog(
-      BuildContext context,
-      WidgetRef ref,
-      TransactionModel tx,
-      ) {
+    BuildContext context,
+    WidgetRef ref,
+    TransactionModel tx,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -254,7 +252,7 @@ class AdminTransactionsTab extends ConsumerWidget {
         ),
         content: Text(
           "Bạn có chắc chắn muốn hủy lệnh rút ${tx.amountVND}đ của ${tx.userName}?\n\n"
-              "Hệ thống sẽ hoàn lại điểm vào tài khoản của người dùng này.",
+          "Hệ thống sẽ hoàn lại điểm vào tài khoản của người dùng này.",
         ),
         actions: [
           TextButton(
@@ -294,7 +292,7 @@ class AdminTransactionsTab extends ConsumerWidget {
     // Tính tổng tiền đang chờ xử lý
     final totalAmount = list.fold<int>(
       0,
-          (sum, item) => sum + (item.amountVND ?? 0),
+      (sum, item) => sum + (item.amountVND ?? 0),
     );
 
     return Container(

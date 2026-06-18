@@ -1003,7 +1003,7 @@ class _RewardBanner
     return Padding(
       padding:
           const EdgeInsets.symmetric(
-        horizontal: 16,
+        horizontal: 4,
       ),
 
       child: Container(

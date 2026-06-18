@@ -392,20 +392,31 @@ class _RewardCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 65,
+            height: 65,
             decoration: BoxDecoration(
               color: reward.isCash
                   ? _gold.withValues(alpha: 0.12)
                   : colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              reward.isCash
-                  ? Icons.account_balance_rounded
-                  : Icons.card_giftcard_rounded,
-              color: reward.isCash ? _gold : colorScheme.primary,
-              size: 26,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                (reward.imageUrl != null && reward.imageUrl!.isNotEmpty)
+                    ? reward.imageUrl!
+                    : 'https://via.placeholder.com/150',
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, stack) => Container(
+                  width: 60,
+                  height: 60,
+                  color: Colors.grey.shade200,
+                  child: const Icon(
+                    Icons.card_giftcard,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 12),
