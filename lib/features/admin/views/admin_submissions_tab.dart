@@ -14,7 +14,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Lắng nghe provider da loc
     final filteredSubmissionsAsync = ref.watch(filteredSubmissionsProvider);
     final allSubmissionsAsync = ref.watch(allSubmissionsStreamProvider);
     return Scaffold(
@@ -22,10 +21,7 @@ class AdminSubmissionsTab extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Thanh tìm kiếm và bộ lọc Chip
             _buildSearchAndFilterBar(context, ref),
-
-            // Thống kê và Danh sách
             Expanded(
               child: filteredSubmissionsAsync.when(
                 data: (list) {
@@ -34,7 +30,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
                   }
 
                   return ListView.builder(
-                    // Cộng 1 để dành vị trí index 0 cho phần Thống kê
                     itemCount: list.length + 1,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemBuilder: (context, index) {
@@ -52,7 +47,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
                         );
                       }
 
-                      // index lúc này chạy từ 1 đến list.length, nên phải trừ 1 để lấy đúng phần tử
                       final submission = list[index - 1];
                       return Padding(
                         padding: const EdgeInsets.symmetric(
@@ -75,10 +69,8 @@ class AdminSubmissionsTab extends ConsumerWidget {
   }
 
   Widget _buildSearchAndFilterBar(BuildContext context, WidgetRef ref) {
-    // Lấy trạng thái filter hiện tại để hiển thị
     final currentStatus = ref.watch(statusFilterProvider);
 
-    // Danh sách các bộ lọc để dễ dàng map ra giao diện
     final List<Map<String, String>> filterOptions = [
       {'value': 'all', 'label': 'Tất cả'},
       {'value': 'pending', 'label': 'Đang chờ'},
@@ -92,7 +84,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ô Tìm kiếm
           TextField(
             onChanged: (value) {
               ref.read(searchQueryProvider.notifier).state = value;
@@ -111,8 +102,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-
-          // Dải Nút Lọc cuộn ngang
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -125,9 +114,8 @@ class AdminSubmissionsTab extends ConsumerWidget {
                     label: Text(
                       option['label']!,
                       style: TextStyle(
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                         color: isSelected ? Colors.white : Colors.black87,
                       ),
                     ),
@@ -136,14 +124,12 @@ class AdminSubmissionsTab extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide.none,
                     ),
-                    // Đổi màu nền khi được chọn
                     selectedColor: AppColors.primaryGreen,
                     backgroundColor: Colors.grey[200],
                     onSelected: (bool selected) {
                       if (selected) {
-                        // Cập nhật trạng thái vào Provider
                         ref.read(statusFilterProvider.notifier).state =
-                            option['value']!;
+                        option['value']!;
                       }
                     },
                   ),
@@ -156,12 +142,11 @@ class AdminSubmissionsTab extends ConsumerWidget {
     );
   }
 
-  // Widget Thẻ bài nộp (Submission Card)
   Widget _buildSubmissionCard(
-    BuildContext context,
-    WidgetRef ref,
-    SubmissionModel sub,
-  ) {
+      BuildContext context,
+      WidgetRef ref,
+      SubmissionModel sub,
+      ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -179,41 +164,41 @@ class AdminSubmissionsTab extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // 🌟 Mở chi tiết khi bấm vào Card
           showModalBottomSheet(
             context: context,
-            isScrollControlled:
-                true, // Bắt buộc true để sheet có thể vươn cao lên
+            isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (context) => SubmissionDetailBottomSheet(submission: sub),
+            builder: (context) =>
+                SubmissionDetailBottomSheet(submission: sub),
           );
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Header: Avatar + Tên + Ngày + Status chip ──
             Row(
               children: [
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: AppColors.primaryGreen,
                   backgroundImage:
-                      (sub.userAvatar != null && sub.userAvatar!.isNotEmpty)
+                  (sub.userAvatar != null && sub.userAvatar!.isNotEmpty)
                       ? NetworkImage(sub.userAvatar!)
                       : null,
-                  child: (sub.userAvatar == null || sub.userAvatar!.isEmpty)
+                  child:
+                  (sub.userAvatar == null || sub.userAvatar!.isEmpty)
                       ? Text(
-                          sub.userName.isNotEmpty
-                              ? sub.userName[0].toUpperCase()
-                              : 'U',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
+                    sub.userName.isNotEmpty
+                        ? sub.userName[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
                       : null,
                 ),
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,21 +209,19 @@ class AdminSubmissionsTab extends ConsumerWidget {
                       ),
                       Text(
                         DateFormat('dd/MM/yyyy HH:mm').format(sub.createdAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        style:
+                        const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
                 ),
-
                 _buildStatusChip(sub.status),
               ],
             ),
 
             const SizedBox(height: 12),
 
+            // ── Tên nhiệm vụ ──
             Text(
               sub.taskTitle,
               style: const TextStyle(
@@ -249,6 +232,7 @@ class AdminSubmissionsTab extends ConsumerWidget {
 
             const SizedBox(height: 6),
 
+            // ── Điểm thưởng ──
             Row(
               children: [
                 const Icon(Icons.stars, size: 16, color: Colors.orange),
@@ -257,8 +241,15 @@ class AdminSubmissionsTab extends ConsumerWidget {
               ],
             ),
 
+            // ── MỚI: Badge AI Verdict ──
+            if (sub.aiVerdict != null) ...[
+              const SizedBox(height: 10),
+              _buildAiBadge(sub),
+            ],
+
             const SizedBox(height: 12),
 
+            // ── Ảnh bằng chứng ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: SizedBox(
@@ -273,10 +264,111 @@ class AdminSubmissionsTab extends ConsumerWidget {
             ),
 
             const SizedBox(height: 12),
-            // Nút bấm duyệt/xóa
+
+            // ── Nút duyệt / từ chối ──
             _buildActionArea(context, ref, sub),
           ],
         ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  BADGE AI VERDICT — widget mới thêm vào
+  // ─────────────────────────────────────────────
+  Widget _buildAiBadge(SubmissionModel sub) {
+    final verdict = sub.aiVerdict ?? 'uncertain';
+    final confidence = sub.aiConfidence ?? 0.0;
+    final explanation = sub.aiExplanation ?? '';
+
+    // Màu sắc theo verdict
+    final color = switch (verdict) {
+      'approved' => const Color(0xFF2E7D32),
+      'rejected' => const Color(0xFFC62828),
+      _ => const Color(0xFFF57F17),
+    };
+    final bgColor = switch (verdict) {
+      'approved' => const Color(0xFFE8F5E9),
+      'rejected' => const Color(0xFFFFEBEE),
+      _ => const Color(0xFFFFF8E1),
+    };
+    final icon = switch (verdict) {
+      'approved' => Icons.check_circle_rounded,
+      'rejected' => Icons.cancel_rounded,
+      _ => Icons.help_rounded,
+    };
+    final label = switch (verdict) {
+      'approved' => 'AI: Hợp lệ',
+      'rejected' => 'AI: Không hợp lệ',
+      _ => 'AI: Chưa chắc chắn',
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Dòng 1: icon AI + label + % tin cậy
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 13, color: Colors.purple),
+              const SizedBox(width: 4),
+              const Text(
+                'Phân tích AI  •  ',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.purple,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              // Badge % tin cậy
+              Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${(confidence * 100).round()}%',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Dòng 2: giải thích (nếu có)
+          if (explanation.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              explanation,
+              style: TextStyle(
+                fontSize: 12,
+                color: color.withOpacity(0.85),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -322,17 +414,15 @@ class AdminSubmissionsTab extends ConsumerWidget {
   }
 
   Widget _buildActionArea(
-    BuildContext context,
-    WidgetRef ref,
-    SubmissionModel sub,
-  ) {
-    // Đang chờ duyệt
+      BuildContext context,
+      WidgetRef ref,
+      SubmissionModel sub,
+      ) {
     if (sub.status == 'pending') {
       return Row(
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              // ĐÃ SỬA: Truyền thêm sub.userId vào hàm này
               onPressed: () =>
                   _showRejectDialog(context, ref, sub.id, sub.userId),
               icon: const Icon(Icons.close),
@@ -360,7 +450,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
       );
     }
 
-    // Đã duyệt
     if (sub.status == 'approved') {
       return Container(
         width: double.infinity,
@@ -386,7 +475,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
       );
     }
 
-    // Bị từ chối
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -439,7 +527,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(10),
         child: InteractiveViewer(
-          // Cho phép zoom ảnh bằng 2 ngón tay
           panEnabled: true,
           minScale: 0.5,
           maxScale: 4,
@@ -452,7 +539,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
     );
   }
 
-  // Thumbnail ảnh có khả năng click xem to
   Widget _buildImageThumbnail(BuildContext context, String url) {
     return GestureDetector(
       onTap: () => _showFullScreenImage(context, url),
@@ -461,7 +547,8 @@ class AdminSubmissionsTab extends ConsumerWidget {
         margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+          image: DecorationImage(
+              image: NetworkImage(url), fit: BoxFit.cover),
         ),
       ),
     );
@@ -502,14 +589,12 @@ class AdminSubmissionsTab extends ConsumerWidget {
     );
   }
 
-  // ĐÃ SỬA: Thêm String userId vào khai báo hàm
   void _showRejectDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String submissionId,
-    String userId,
-  ) {
-    // Controller để lấy text từ ô nhập liệu
+      BuildContext context,
+      WidgetRef ref,
+      String submissionId,
+      String userId,
+      ) {
     final reasonController = TextEditingController();
 
     showDialog(
@@ -540,10 +625,12 @@ class AdminSubmissionsTab extends ConsumerWidget {
               const SizedBox(height: 12),
               TextField(
                 controller: reasonController,
-                maxLines: 3, // Cho phép nhập nhiều dòng
+                maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: "Ví dụ: Ảnh quá mờ, không đúng yêu cầu nhiệm vụ...",
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                  hintText:
+                  "Ví dụ: Ảnh quá mờ, không đúng yêu cầu nhiệm vụ...",
+                  hintStyle:
+                  const TextStyle(color: Colors.grey, fontSize: 13),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -557,7 +644,8 @@ class AdminSubmissionsTab extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
+              child:
+              const Text("Hủy", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -569,8 +657,6 @@ class AdminSubmissionsTab extends ConsumerWidget {
               ),
               onPressed: () {
                 final reason = reasonController.text.trim();
-
-                // Validate: Bắt buộc phải nhập lý do
                 if (reason.isEmpty) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(
@@ -581,15 +667,12 @@ class AdminSubmissionsTab extends ConsumerWidget {
                   return;
                 }
 
-                // ĐÃ SỬA: Truyền đủ 3 tham số (submissionId, userId, reason)
                 ref
                     .read(adminActionProvider.notifier)
                     .reject(submissionId, userId, reason);
 
-                // Đóng Dialog sau khi thao tác
                 Navigator.pop(ctx);
 
-                // Báo thành công
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text("Đã từ chối bài nộp!"),

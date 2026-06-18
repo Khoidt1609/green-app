@@ -8,30 +8,35 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/providers/auth_providers.dart';
+import '../../../core/services/gemini_service.dart';
 import '../../../data/models/submission_model.dart';
 import '../../../data/models/task_model.dart';
 
 // Danh sách file ảnh đang chọn (tự reset khi sheet đóng)
 final pickedImagesProvider =
-    StateProvider.autoDispose<List<File>>((ref) => []);
+StateProvider.autoDispose<List<File>>((ref) => []);
 
-//Trạng thái đang upload / submit
+// Trạng thái đang upload / submit
 final submissionLoadingProvider =
-    StateProvider.autoDispose<bool>((ref) => false);
+StateProvider.autoDispose<bool>((ref) => false);
 
-//Service chính để thao tác ảnh & nộp bài
+// MỚI: Gemini đang phân tích ảnh
+final isAnalyzingProvider =
+StateProvider.autoDispose<bool>((ref) => false);
+
+// MỚI: Kết quả phân tích của Gemini
+final aiAnalysisResultProvider =
+StateProvider.autoDispose<GeminiAnalysisResult?>((ref) => null);
+
+// Service chính để thao tác ảnh & nộp bài
 final submissionServiceProvider =
-    Provider.autoDispose((ref) => SubmissionService(ref));
+Provider.autoDispose((ref) => SubmissionService(ref));
 
-//Cloudinary config
-
+// Cloudinary config
 const _cloudName = 'dfvtfibtx';
 const _uploadPreset = 'greenstep_preset';
 const _cloudinaryUrl =
     'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
-
-//SubmissionService
 
 class SubmissionService {
   SubmissionService(this._ref);
@@ -40,12 +45,10 @@ class SubmissionService {
   final _picker = ImagePicker();
   final _dio = Dio();
 
-  //Pick images
-
   Future<void> pickImage(ImageSource source) async {
     if (source == ImageSource.camera) {
       final photo =
-          await _picker.pickImage(source: source, imageQuality: 60);
+      await _picker.pickImage(source: source, imageQuality: 60);
       if (photo == null) return;
       _appendImages([File(photo.path)]);
     } else {
@@ -53,6 +56,7 @@ class SubmissionService {
       if (images.isEmpty) return;
       _appendImages(images.map((x) => File(x.path)).toList());
     }
+    _ref.read(aiAnalysisResultProvider.notifier).state = null;
   }
 
   void _appendImages(List<File> newFiles) {
@@ -67,9 +71,8 @@ class SubmissionService {
     final current = [..._ref.read(pickedImagesProvider)];
     current.removeAt(index);
     _ref.read(pickedImagesProvider.notifier).state = current;
+    _ref.read(aiAnalysisResultProvider.notifier).state = null;
   }
-
-  //Submit task
 
   Future<bool> submitTask(TaskModel task, String note) async {
     final images = _ref.read(pickedImagesProvider);
@@ -81,7 +84,7 @@ class SubmissionService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      // Check for existing submission with same taskId by this user to prevent duplicates
+      // Check duplicate
       final existing = await FirebaseFirestore.instance
           .collection('submissions')
           .where('userId', isEqualTo: user.uid)
@@ -90,47 +93,75 @@ class SubmissionService {
           .get();
 
       if (existing.docs.isNotEmpty) {
-        // Duplicate found — abort submit to prevent spam/duplicate points
         _setLoading(false);
         return false;
       }
 
-      //Upload ảnh lên Cloudinary
-      final downloadUrls = await _uploadImages(images, user.uid);
-      //lấy từ provider user
-      final currentUserData = await _ref.read(currentUserProvider.future);
-
-      if (currentUserData == null) {
-        print("Lỗi: Không lấy được thông tin User từ Firestore");
-        return false;
+      // Gemini phân tích ảnh
+      GeminiAnalysisResult aiResult = GeminiAnalysisResult.error();
+      try {
+        _ref.read(isAnalyzingProvider.notifier).state = true;
+        aiResult = await GeminiService().analyzeSubmission(
+          imageFile: images.first,
+          taskTitle: task.title,
+          taskDescription: task.description,
+        );
+        _ref.read(aiAnalysisResultProvider.notifier).state = aiResult;
+      } catch (e) {
+        print('[Gemini] Lỗi, bỏ qua: $e');
+      } finally {
+        _ref.read(isAnalyzingProvider.notifier).state = false;
       }
-      //Lưu submission vào Firestore
+
+      // Upload ảnh lên Cloudinary
+      final downloadUrls = await _uploadImages(images, user.uid);
+
+      // FIX: Đọc avatarUrl trực tiếp từ Firestore thay vì dùng
+      // currentUserProvider.future (StreamProvider hay bị treo)
+      String? avatarUrl;
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        avatarUrl = userDoc.data()?['avatarUrl'] as String?;
+      } catch (e) {
+        print('[submitTask] Không lấy được avatarUrl, dùng null: $e');
+      }
+
+      // Lưu vào Firestore
       final submission = SubmissionModel(
         id: '',
         userId: user.uid,
         userName: user.displayName ??
             user.email?.split('@').first ??
             'Người dùng GreenStep',
-        userAvatar: currentUserData.avatarUrl,
+        userAvatar: avatarUrl,
         taskId: task.id,
         taskTitle: task.title,
         proofUrls: downloadUrls,
         pointsReward: task.pointsReward,
         userNote: note.trim(),
         createdAt: DateTime.now(),
+        aiVerdict: aiResult.verdict,
+        aiExplanation: aiResult.explanation,
+        aiConfidence: aiResult.confidence,
       );
 
       final data = submission.toMap()
         ..['userEmail'] = user.email ?? '';
 
-      await FirebaseFirestore.instance.collection('submissions').add(submission.toMap());
+      await FirebaseFirestore.instance
+          .collection('submissions')
+          .add(data);
 
-      //Reset ảnh đã chọn
       _ref.read(pickedImagesProvider.notifier).state = [];
       return true;
-    } catch (_) {
+    } catch (e) {
+      print('[submitTask] Lỗi: $e');
       return false;
     } finally {
+      _ref.read(isAnalyzingProvider.notifier).state = false;
       _setLoading(false);
     }
   }

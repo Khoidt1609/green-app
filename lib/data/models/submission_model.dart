@@ -13,6 +13,10 @@ class SubmissionModel {
   final String? adminNote;
   final String? userNote;
   final DateTime createdAt;
+  // MỚI: kết quả AI — đều optional, không ảnh hưởng code cũ
+  final String? aiVerdict;
+  final String? aiExplanation;
+  final double? aiConfidence;
 
   SubmissionModel({
     required this.id,
@@ -27,9 +31,12 @@ class SubmissionModel {
     this.adminNote,
     this.userNote,
     required this.createdAt,
+    // MỚI: optional, mặc định null
+    this.aiVerdict,
+    this.aiExplanation,
+    this.aiConfidence,
   });
 
-  // FIX: tên param đổi từ pointReward → pointsReward cho khớp field
   SubmissionModel copyWith({
     String? id,
     String? userId,
@@ -43,6 +50,9 @@ class SubmissionModel {
     String? adminNote,
     String? userNote,
     DateTime? createdAt,
+    String? aiVerdict,
+    String? aiExplanation,
+    double? aiConfidence,
   }) {
     return SubmissionModel(
       id: id ?? this.id,
@@ -57,26 +67,39 @@ class SubmissionModel {
       adminNote: adminNote ?? this.adminNote,
       userNote: userNote ?? this.userNote,
       createdAt: createdAt ?? this.createdAt,
+      aiVerdict: aiVerdict ?? this.aiVerdict,
+      aiExplanation: aiExplanation ?? this.aiExplanation,
+      aiConfidence: aiConfidence ?? this.aiConfidence,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
+    // BUG FIX: Không ghi null vào Firestore — các field nullable chỉ
+    // được thêm vào map khi thực sự có giá trị, tránh lỗi ghi document.
+    final map = <String, dynamic>{
       'userId': userId,
       'taskId': taskId,
       'taskTitle': taskTitle,
       'userName': userName,
-      'userAvatar': userAvatar,
       'proofUrls': proofUrls,
       'pointsReward': pointsReward,
       'status': status,
-      'adminNote': adminNote,
-      'userNote': userNote,
       'createdAt': Timestamp.fromDate(createdAt),
     };
+
+    // Các field nullable — chỉ ghi khi có giá trị
+    if (userAvatar != null) map['userAvatar'] = userAvatar;
+    if (adminNote != null) map['adminNote'] = adminNote;
+    if (userNote != null && userNote!.isNotEmpty) map['userNote'] = userNote;
+
+    // MỚI: field AI — chỉ ghi khi Gemini trả về kết quả thực sự
+    if (aiVerdict != null) map['aiVerdict'] = aiVerdict;
+    if (aiExplanation != null) map['aiExplanation'] = aiExplanation;
+    if (aiConfidence != null) map['aiConfidence'] = aiConfidence;
+
+    return map;
   }
 
-  // FIX: xóa print() debug
   factory SubmissionModel.fromDocument(DocumentSnapshot doc) {
     final map = doc.data() as Map<String, dynamic>? ?? {};
     return SubmissionModel(
@@ -85,14 +108,18 @@ class SubmissionModel {
       taskId: map['taskId'] as String? ?? '',
       taskTitle: map['taskTitle'] as String? ?? '',
       userName: map['userName'] as String? ?? '',
-      userAvatar: map['userAvatar'] as String? ?? '',
+      userAvatar: map['userAvatar'] as String?,
       proofUrls: List<String>.from(map['proofUrls'] as List? ?? []),
       pointsReward: (map['pointsReward'] as num?)?.toInt() ?? 0,
       status: map['status'] as String? ?? 'pending',
       adminNote: map['adminNote'] as String?,
       userNote: map['userNote'] as String? ?? '',
       createdAt:
-          (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      // MỚI: đọc từ Firestore, null nếu chưa có
+      aiVerdict: map['aiVerdict'] as String?,
+      aiExplanation: map['aiExplanation'] as String?,
+      aiConfidence: (map['aiConfidence'] as num?)?.toDouble(),
     );
   }
 }

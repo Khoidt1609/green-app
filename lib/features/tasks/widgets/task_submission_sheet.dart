@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/task_model.dart';
 import '../providers/submission_provider.dart';
+import 'ai_analysis_result_widget.dart';
 
 class TaskSubmissionSheet extends ConsumerStatefulWidget {
   final TaskModel task;
@@ -16,8 +17,6 @@ class TaskSubmissionSheet extends ConsumerStatefulWidget {
 class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
   final TextEditingController _noteController = TextEditingController();
 
-  //làm trống popup khi bat
-
   @override
   void dispose() {
     _noteController.dispose();
@@ -26,10 +25,13 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Theo dõi trạng thái từ Riverpod
+    // Theo dõi trạng thái từ Riverpod — GIỮ NGUYÊN gốc
     final pickedImages = ref.watch(pickedImagesProvider);
     final isLoading = ref.watch(submissionLoadingProvider);
     final submissionService = ref.read(submissionServiceProvider);
+    // MỚI: thêm 2 dòng watch Gemini
+    final isAnalyzing = ref.watch(isAnalyzingProvider);
+    final aiResult = ref.watch(aiAnalysisResultProvider);
 
     return Container(
       // Padding tự động đẩy lên khi mở bàn phím nhập Ghi chú
@@ -73,7 +75,7 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Vùng hiển thị ảnh (Preview)
+            // Vùng hiển thị ảnh (Preview) — GIỮ NGUYÊN hoàn toàn
             Container(
               height: 180,
               width: double.infinity,
@@ -130,7 +132,7 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
             ),
             const SizedBox(height: 16),
 
-            // Hai nút Chụp ảnh & Tải lên
+            // Hai nút Chụp ảnh & Tải lên — GIỮ NGUYÊN hoàn toàn như gốc
             Row(
               children: [
                 Expanded(
@@ -163,7 +165,7 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
               ],
             ),
 
-            //Ghi chú
+            //Ghi chú — GIỮ NGUYÊN hoàn toàn
             const SizedBox(height: 20),
             const Text('Ghi chú (tùy chọn)', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
             const SizedBox(height: 8),
@@ -179,7 +181,7 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
               ),
             ),
 
-            //Điểm thưởng
+            //Điểm thưởng — GIỮ NGUYÊN hoàn toàn
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -193,29 +195,60 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
               ),
             ),
 
-            // Nút nộp bài
+            // MỚI: Hiện spinner khi Gemini đang phân tích
+            if (isAnalyzing) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F8F5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(color: AppColors.primaryGreen, strokeWidth: 2),
+                    ),
+                    SizedBox(width: 10),
+                    Text('🤖 AI đang phân tích ảnh...', style: TextStyle(color: AppColors.primaryGreen)),
+                  ],
+                ),
+              ),
+            ],
+
+            // MỚI: Hiện kết quả AI sau khi xong
+            if (aiResult != null && !isAnalyzing) ...[
+              const SizedBox(height: 16),
+              AiAnalysisResultWidget(result: aiResult),
+            ],
+
+            // Nút nộp bài — GIỮ NGUYÊN logic gốc
+            // Chỉ thêm isAnalyzing vào điều kiện khoá nút và spinner
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                // Nút chỉ bấm được khi đã chọn ảnh VÀ không trong trạng thái đang upload
-                onPressed: isLoading
+                onPressed: (isLoading || isAnalyzing)
                     ? null
                     : () async {
-                  bool isSuccess = await ref.read(submissionServiceProvider).submitTask(widget.task, _noteController.text);
+                  bool isSuccess = await ref
+                      .read(submissionServiceProvider)
+                      .submitTask(widget.task, _noteController.text);
 
                   if (isSuccess) {
-                    // Nếu THÀNH CÔNG: Đóng popup và trả về true để màn hình ngoài báo xanh
+                    // THÀNH CÔNG: đóng popup → màn hình ngoài cập nhật "Chờ duyệt"
                     if (context.mounted) Navigator.of(context).pop(true);
                   } else {
-                    // Nếu THẤT BẠI: Hiện lỗi NGAY LẬP TỨC trên chính cái Popup này
+                    // THẤT BẠI: hiện snackbar lỗi
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Lỗi: Không thể nộp bài. Vui lòng kiểm tra lại!'),
                           backgroundColor: Colors.redAccent,
-                          behavior: SnackBarBehavior.floating, // Để nó nổi lên trên bàn phím
+                          behavior: SnackBarBehavior.floating,
                         ),
                       );
                     }
@@ -227,7 +260,7 @@ class _TaskSubmissionSheetState extends ConsumerState<TaskSubmissionSheet> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
-                child: isLoading
+                child: (isLoading || isAnalyzing)
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : const Text('Nộp bằng chứng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
