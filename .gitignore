@@ -47,4 +47,6 @@ app.*.map.json
 # Firebase configuration files
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart
+lib/firebase_options.dart-e
+# Environment variables — chứa API key, không commit lên git
+.env

@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiAnalysisResult {
   final bool isValid;
@@ -35,7 +36,9 @@ class GeminiAnalysisResult {
 }
 
 class GeminiService {
-  static const _apiKey = 'AQ.Ab8RN6ICCxHwkBrl5cfYAahWWoEON3oeGmrFTTs-UFN4-gIMfg';
+  // Đọc key từ .env — không hardcode, không lộ lên git
+  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
+
   static const _model = 'gemini-2.5-flash';
   static const _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
@@ -48,13 +51,17 @@ class GeminiService {
     required String taskDescription,
   }) async {
     try {
+      if (_apiKey.isEmpty) {
+        print('[Gemini] API key trống — kiểm tra file .env');
+        return GeminiAnalysisResult.error();
+      }
+
       final imageBytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(imageBytes);
       final mimeType = _getMimeType(imageFile.path);
 
       print('[Gemini] Bắt đầu phân tích ảnh: ${imageFile.path}');
 
-      // FIX 1: Prompt yêu cầu JSON ngắn gọn hơn, tránh bị cắt
       final prompt = '''
 Bạn là hệ thống kiểm tra bằng chứng cho ứng dụng GreenStep.
 Nhiệm vụ: "$taskTitle" - $taskDescription
@@ -84,9 +91,7 @@ CHỈ trả JSON, không markdown, không text khác.
           ],
           'generationConfig': {
             'temperature': 0.1,
-            // FIX 2: Tăng maxOutputTokens để tránh JSON bị cắt giữa chừng
             'maxOutputTokens': 512,
-            // FIX 3: Thêm stopSequences để Gemini dừng đúng sau dấu }
             'stopSequences': ['\n\n'],
           },
         },
@@ -99,7 +104,6 @@ CHỈ trả JSON, không markdown, không text khác.
 
       print('[Gemini] Status: ${response.statusCode}');
 
-      // Kiểm tra finishReason để phát hiện bị cắt
       final candidates = response.data['candidates'] as List?;
       if (candidates == null || candidates.isEmpty) {
         print('[Gemini] Không có candidates');
@@ -110,26 +114,23 @@ CHỈ trả JSON, không markdown, không text khác.
       final finishReason = candidate['finishReason'] as String? ?? '';
       print('[Gemini] finishReason: $finishReason');
 
-      // Nếu bị cắt do token limit → trả error ngay, không parse JSON thừa
       if (finishReason == 'MAX_TOKENS') {
-        print('[Gemini] Bị cắt do MAX_TOKENS, tăng maxOutputTokens nếu cần');
+        print('[Gemini] Bị cắt do MAX_TOKENS');
         return GeminiAnalysisResult.error();
       }
 
       final text = candidate['content']['parts'][0]['text'] as String? ?? '';
       print('[Gemini] Raw response: $text');
 
-      // Dọn sạch markdown nếu có
       String cleanJson = text
           .replaceAll('```json', '')
           .replaceAll('```', '')
           .trim();
 
-      // Tìm JSON object
       final jsonStart = cleanJson.indexOf('{');
       final jsonEnd = cleanJson.lastIndexOf('}');
       if (jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart) {
-        print('[Gemini] Không tìm thấy JSON hợp lệ trong response');
+        print('[Gemini] Không tìm thấy JSON hợp lệ');
         return GeminiAnalysisResult.error();
       }
 

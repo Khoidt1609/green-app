@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,6 +14,9 @@ import 'features/app_shell/app_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load biến môi trường từ .env trước khi làm gì khác
+  await dotenv.load(fileName: '.env');
 
   if (Firebase.apps.isEmpty) {
     try {
